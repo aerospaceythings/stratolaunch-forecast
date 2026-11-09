@@ -80,7 +80,8 @@ def run(cfg, cycle=None, ndays=None):
         g = lambda n, i=0: sv[n][i] if n in sv else None
         wind10 = None if g('u10') is None else math.hypot(g('u10'), g('v10'))
         landing_utc = d['launch_utc'] + timedelta(minutes=dur)
-        r = dict(date=d['date'].isoformat(), lead_days=round(d['fh'] / 24, 1),
+        r = dict(date=d['date'].isoformat(), lead_days=round(d['fh'] / 24, 1), fh=round(d['fh'], 4),
+                 sunset_fh=round((d['sunset_utc'] - cycle).total_seconds() / 3600, 3),
                  launch_local=(d['launch_utc'] + tz).strftime('%H:%M'),
                  launch_utc=d['launch_utc'].strftime('%Y-%m-%dT%H:%MZ'),
                  sunrise_local=(d['launch_utc'] + timedelta(minutes=s['launch_minutes_before_sunrise']) + tz).strftime('%H:%M'),
@@ -106,8 +107,29 @@ def run(cfg, cycle=None, ndays=None):
         results.append(r)
         print(f'  {r["date"]} {r["launch_local"]}  {r["burst_status"]:8s} {L:5.0f} km {r["landing_dir"]:3s}  '
               f'wind {r["wind10_kmh"]}  fog {r["fog"]}  float {r["float_status"]}')
+    export_winds(upper, cycle)
     return dict(cycle=cycle.strftime('%Y-%m-%dT%HZ'), generated=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%MZ'),
                 model='NOAA GFS 0.25°', site=s, flight=fl, days=results)
+
+
+def export_winds(upper, cycle, step=4):
+    """Coarse (1 deg) copy of the winds for the website's what-if sliders -> site/winds.json"""
+    import base64
+    hs = sorted(upper)
+    if not hs:
+        return
+    common = sorted(set.intersection(*[set(upper[h][2].tolist()) for h in hs]), reverse=True)
+    la, lo = upper[hs[0]][0], upper[hs[0]][1]
+    yi, xi = np.arange(0, len(la), step), np.arange(0, len(lo), step)
+    def pack(k, scale):
+        arr = np.stack([upper[h][k][[upper[h][2].tolist().index(lv) for lv in common]][:, yi][:, :, xi] for h in hs])
+        return base64.b64encode(np.round(arr / scale).astype('<i2').tobytes()).decode()
+    out = dict(cycle=cycle.strftime('%Y-%m-%dT%HZ'), hours=hs, lats=la[yi].round(3).tolist(), lons=lo[xi].round(3).tolist(),
+               levels=common, shape=[len(hs), len(common), len(yi), len(xi)],
+               u=pack(3, 0.05), v=pack(4, 0.05), gh=pack(5, 2.0), scale=dict(u=0.05, v=0.05, gh=2.0))
+    os.makedirs(os.path.join(ROOT, 'site'), exist_ok=True)
+    with open(os.path.join(ROOT, 'site', 'winds.json'), 'w') as f:
+        json.dump(out, f, separators=(',', ':'))
 
 
 def save(out):

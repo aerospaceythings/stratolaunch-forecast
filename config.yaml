@@ -8,10 +8,10 @@ site:
   timezone_hours: 8            # AWST
   launch_minutes_before_sunrise: 15
 
-flight:                        # burst-balloon flight model (13 Oct 2026 flight)
-  ascent_ms: 6.3
+flight:                        # defaults; the website has sliders to try other values
+  ascent_ms: 5.0
   burst_km: 33.5
-  descent_sea_level_ms: 5.0    # fall speed near the ground; faster higher up (1/sqrt(density))
+  descent_sea_level_ms: 5.0    # landing speed near the ground; faster higher up (1/sqrt(density))
 
 burst_mode:                    # GO only if every check passes
   max_landing_km: 150
@@ -41,3 +41,8 @@ forecast:
   model: gfs_0p25
   box: {north: -28.5, south: -34.8, west: 113.5, east: 120.8}
   max_days: 16
+
+map:
+  # optional: your own tile service, e.g. MapTiler 'https://api.maptiler.com/maps/dataviz-dark/{z}/{x}/{y}.png?key=YOUR_KEY'
+  custom_tiles_url: ''
+  custom_tiles_attribution: ''
