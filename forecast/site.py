@@ -2,11 +2,20 @@
 import json, os
 
 
+def _window(data):
+    import glob
+    out = {}
+    for f in sorted(glob.glob(os.path.join(data, 'history_window', '*.json'))):
+        d = json.load(open(f))
+        out[d['date']] = d
+    return out
+
+
 def build(root, cfg):
     data = os.path.join(root, 'data')
     load = lambda n, d: json.load(open(os.path.join(data, n))) if os.path.exists(os.path.join(data, n)) else d
     payload = dict(latest=load('latest.json', None), history=load('history.json', {}),
-                   climatology=load('climatology.json', {'days': {}}),
+                   climatology=_window(data),
                    config=dict(burst=cfg['burst_mode'], float=cfg['float_mode'], site=cfg['site'], flight=cfg['flight'],
                                avoid=cfg.get('avoid_zones') or [], map=cfg.get('map') or {}))
     tpl = open(os.path.join(root, 'forecast', 'template.html'), encoding='utf-8').read()
