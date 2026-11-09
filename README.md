@@ -1,6 +1,6 @@
 # Stratolaunch forecast
 
-A daily launch forecast for the APD Space balloon launch site near Northam, WA, published as a website.
+A daily launch forecast for the balloon launch site near Northam, WA.
 
 Every day at **13:20 Perth time**, GitHub runs the forecast on its own servers and updates the site. For each of the next ~16 mornings it shows:
 
