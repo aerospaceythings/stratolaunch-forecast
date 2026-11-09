@@ -1,0 +1,131 @@
+{
+"date": "12-09",
+"target_year": 2026,
+"flight": "5.0/5.0/33.5",
+"source": "ERA5 reanalysis",
+"years": {
+"2021": {
+"landing_km": 66.4,
+"landing_bearing": 79,
+"landing_dir": "E",
+"landing_lat": -31.5216,
+"landing_lon": 117.3805,
+"landing_over_ocean": false,
+"wind10_kmh": 19.1,
+"gust_kmh": 33.6,
+"rain_mmh": 0.0,
+"cape": 4,
+"daylight_after_landing_h": 11.8,
+"jet_kmh": 147,
+"band_min_ms": 1.86,
+"steering_arc_deg": 155,
+"fog": "low",
+"burst_status": "marginal",
+"reasons": [
+"launch wind 19 km/h",
+"gusts 34 km/h"
+],
+"float_status": "good"
+},
+"2022": {
+"landing_km": 163.4,
+"landing_bearing": 116,
+"landing_dir": "ESE",
+"landing_lat": -32.2708,
+"landing_lon": 118.243,
+"landing_over_ocean": false,
+"wind10_kmh": 12.0,
+"gust_kmh": 21.4,
+"rain_mmh": 0.03,
+"cape": 13,
+"daylight_after_landing_h": 11.8,
+"jet_kmh": 222,
+"band_min_ms": 1.8,
+"steering_arc_deg": 143,
+"fog": "moderate",
+"burst_status": "marginal",
+"reasons": [
+"lands 163 km away",
+"fog risk moderate"
+],
+"float_status": "fair"
+},
+"2023": {
+"landing_km": 81.2,
+"landing_bearing": 334,
+"landing_dir": "NNW",
+"landing_lat": -30.976,
+"landing_lon": 116.3145,
+"landing_over_ocean": false,
+"wind10_kmh": 22.0,
+"gust_kmh": 39.1,
+"rain_mmh": 0.0,
+"cape": 0,
+"daylight_after_landing_h": 11.8,
+"jet_kmh": 110,
+"band_min_ms": 2.33,
+"steering_arc_deg": 154,
+"fog": "low",
+"burst_status": "nogo",
+"reasons": [
+"launch wind 22 km/h",
+"gusts 39 km/h"
+],
+"float_status": "good"
+},
+"2024": {
+"landing_km": 115.3,
+"landing_bearing": 107,
+"landing_dir": "ESE",
+"landing_lat": -31.9286,
+"landing_lon": 117.8568,
+"landing_over_ocean": false,
+"wind10_kmh": 19.7,
+"gust_kmh": 34.9,
+"rain_mmh": 0.0,
+"cape": 253,
+"daylight_after_landing_h": 11.8,
+"jet_kmh": 175,
+"band_min_ms": 1.98,
+"steering_arc_deg": 215,
+"fog": "low",
+"burst_status": "marginal",
+"reasons": [
+"launch wind 20 km/h",
+"gusts 35 km/h"
+],
+"float_status": "good"
+},
+"2025": {
+"landing_km": 111.5,
+"landing_bearing": 107,
+"landing_dir": "ESE",
+"landing_lat": -31.9193,
+"landing_lon": 117.8182,
+"landing_over_ocean": false,
+"wind10_kmh": 16.7,
+"gust_kmh": 29.4,
+"rain_mmh": 0.0,
+"cape": 0,
+"daylight_after_landing_h": 11.8,
+"jet_kmh": 162,
+"band_min_ms": 1.13,
+"steering_arc_deg": 166,
+"fog": "low",
+"burst_status": "marginal",
+"reasons": [
+"launch wind 17 km/h"
+],
+"float_status": "good"
+}
+},
+"summary": {
+"n": 5,
+"go": 0,
+"marginal": 4,
+"float_good": 4,
+"landing_median_km": 112,
+"landing_min_km": 66,
+"landing_max_km": 163
+}
+}
