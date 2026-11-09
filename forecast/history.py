@@ -41,9 +41,20 @@ def fetch(c, dataset, req, path):
     return path
 
 
+def _open_any(path):
+    """CDS returns a zip (one .nc per stream/step type) for mixed single-level requests."""
+    import xarray as xr, zipfile
+    if zipfile.is_zipfile(path):
+        d = path + '_unzipped'
+        with zipfile.ZipFile(path) as z:
+            z.extractall(d)
+        parts = [xr.open_dataset(os.path.join(d, n), engine='netcdf4') for n in sorted(os.listdir(d)) if n.endswith('.nc')]
+        return xr.merge(parts, compat='override', join='outer')
+    return xr.open_dataset(path, engine='netcdf4')
+
+
 def open_nc(path):
-    import xarray as xr
-    ds = xr.open_dataset(path)
+    ds = _open_any(path)
     ren = {a: b for a, b in [('valid_time', 'time'), ('pressure_level', 'level'), ('latitude', 'lat'),
                              ('longitude', 'lon')] if a in ds.dims or a in ds.coords}
     ds = ds.rename(ren)

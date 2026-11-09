@@ -28,10 +28,22 @@ jobs:
           python-version: '3.12'
           cache: pip
       - run: pip install -r requirements-history.txt
+      - name: Restore ERA5 downloads
+        uses: actions/cache/restore@v4
+        with:
+          path: .cache/era5
+          key: era5-${{ github.run_id }}
+          restore-keys: era5-
       - name: Download ERA5 and fly past years
         env:
           CDSAPI_KEY: ${{ secrets.CDSAPI_KEY }}
         run: python -m forecast.history
+      - name: Keep ERA5 downloads (even if the step above failed)
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .cache/era5
+          key: era5-${{ github.run_id }}-${{ github.run_attempt }}
       - name: Save to the repo
         id: save
         run: |
