@@ -2,16 +2,15 @@
 
 A daily launch forecast for the balloon launch site near Northam, WA.
 
-Every day at **13:20 Perth time**, GitHub runs the forecast on its own servers and updates the site. For each of the next ~16 mornings it shows:
+Every day at **13:20 AWST**, GitHub runs the forecast on its own servers and updates the site. For each of the next ~16 mornings it shows:
 
 - **🎈 Burst flight:** a **GO / MARGINAL / NO-GO** rating for a launch 15 minutes before sunrise, with:
   - predicted landing spot and flight path
   - launch wind and gusts
   - fog risk
   - rain and storm risk
-- **🛰️ Floating (watch only):** whether the 18–23.5 km band has a calm layer and a wide choice of wind directions. This is what a future floating platform would need.
+- **🛰️ Floating flight:** whether the 18–23.5 km band has a calm layer and a wide choice of wind directions. This is what a future floating platform would need.
 - **📈 How each day's forecast has changed:** every run is saved, so you can watch a date's prediction settle as the day gets closer.
-- **📅 History cards** beyond the 16-day forecast: what that date looked like in 2021–2025 (ERA5 reanalysis). They exist only where a past analysis was done, currently 1–17 December.
 
 ## How confident is it?
 
