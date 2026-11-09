@@ -32,7 +32,7 @@ h1{font-size:clamp(28px,4vw,44px);font-weight:600;margin:28px 0 6px;letter-spaci
 .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;cursor:pointer;min-height:150px;display:flex;flex-direction:column;gap:6px;transition:border-color .15s}
 .card:hover{border-color:var(--lav2)}
 .card.sel{border-color:var(--lav);box-shadow:0 0 0 1px var(--lav) inset}
-.card.low{opacity:.72}.card.clim{opacity:.55;border-style:dashed;cursor:default}
+.card.low{opacity:.72}.card.clim{opacity:.8;border-style:dashed}
 .dow{font-size:12px;color:var(--mute);text-transform:uppercase;letter-spacing:1px}
 .dd{font-size:18px;font-weight:600}
 .badge{display:inline-block;font-size:12px;font-weight:600;border-radius:999px;padding:2px 10px;width:max-content}
@@ -113,8 +113,8 @@ footer{color:var(--mute);font-size:12px;margin-top:28px;line-height:1.6}
 </div>
 <script>
 const D=/*__DATA__*/null;
-const FC=D.latest, H=D.history||{}, C=(D.climatology||{}).days||{}, CF=D.config;
-let mode='burst', sel=null, map, layer, evoChart, profChart;
+const FC=D.latest, H=D.history||{}, C=D.climatology||{}, CF=D.config;
+let mode='burst', sel=null, selH=null, map, layer, evoChart, profChart;
 const BASE=(FC&&FC.days)||[];
 let days=BASE;
 const DEF={asc:CF.flight.ascent_ms,des:CF.flight.descent_sea_level_ms,bur:CF.flight.burst_km};
@@ -147,16 +147,20 @@ function strip(){
       `<div class="small">${Math.round(r.landing_km)} km ${r.landing_dir}${r.landing_over_ocean?' · ocean':''}<br>wind ${r.wind10_kmh!=null?Math.round(r.wind10_kmh):'–'} km/h<br>fog ${r.fog}<br>${r.rain_mmh>=CF.burst.max_rain_mmh?'rain':'dry'}${r.cape>=CF.burst.max_cape?' · storms':''}</div>`:
       `<div class="small">calmest ${(r.band_min_ms*3.6).toFixed(0)} km/h<br>at ${r.band_min_alt_km.toFixed(1)} km<br>steering ${Math.round(r.steering_arc_deg)}°<br>turn ${r.zero_wind_km?r.zero_wind_km.toFixed(1)+' km':'–'}</div>`;
     c.innerHTML=`<div class="dow">${f.dow} · ${r.launch_local}</div><div class="dd">${f.dd}</div><span class="badge ${s}">${label[s]}</span>${body}<div class="conf">${r.confidence} confidence · ${r.lead_days} d</div>`;
-    c.onclick=()=>{sel=r;render()};el.appendChild(c);
+    c.onclick=()=>{sel=r;selH=null;render()};el.appendChild(c);
   });
-  // climatology cards beyond the forecast horizon (next 30 days)
+  // history cards: same calendar dates in the previous 5 years (ERA5), up to 30 days ahead
   if(days.length){const last=new Date(days[days.length-1].date+'T00:00:00');
     for(let k=1;k<=30-days.length;k++){const d=new Date(last);d.setDate(d.getDate()+k);
-      const key=String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const cl=C[key];if(!cl)continue;
-      const c=document.createElement('div');c.className='card clim';
-      c.innerHTML=`<div class="dow">${d.toLocaleDateString('en-AU',{weekday:'short'})} · history</div><div class="dd">${d.toLocaleDateString('en-AU',{day:'numeric',month:'short'})}</div>
-       <div class="small">typical ${cl.landing_median_km} km<br>range ${cl.landing_min_km}–${cl.landing_max_km} km<br>${cl.within_150_pct}% under 150 km</div><div class="conf">${cl.years} history</div>`;
-      el.appendChild(c);}}
+      const key=String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const h=C[key];
+      const c=document.createElement('div');c.className='card clim'+(selH===key?' sel':'');
+      const head=`<div class="dow">${d.toLocaleDateString('en-AU',{weekday:'short'})} · history</div><div class="dd">${d.toLocaleDateString('en-AU',{day:'numeric',month:'short'})}</div>`;
+      if(!h||!h.summary||!h.summary.n){c.innerHTML=head+'<div class="small">history not downloaded yet</div>';el.appendChild(c);continue}
+      const sm=h.summary,ys=Object.keys(h.years).sort();
+      const body=mode==='burst'?`<span class="badge ${sm.go>=Math.ceil(sm.n/2)?'go':sm.go?'marginal':'nogo'}">GO ${sm.go}/${sm.n} yrs</span><div class="small">typical ${sm.landing_median_km} km<br>range ${sm.landing_min_km}–${sm.landing_max_km} km</div>`
+        :`<span class="badge ${sm.float_good>=Math.ceil(sm.n/2)?'good':sm.float_good?'fair':'poor'}">GOOD ${sm.float_good}/${sm.n} yrs</span>`;
+      c.innerHTML=head+body+`<div class="conf">${ys[0]}–${ys[ys.length-1]} · ERA5</div>`;
+      c.style.cursor='pointer';c.onclick=()=>{selH=key;render()};el.appendChild(c);}}
 }
 
 function initMap(){
@@ -183,12 +187,22 @@ function drawMap(){
   document.getElementById('mapSub').textContent=mode==='burst'?'One dot per launch day, coloured by status. Click a day to see its flight path.':'Floating mode is judged above the launch site; the map shows burst landings for reference.';
   days.forEach(r=>{const m=L_.circleMarker([r.landing_lat,r.landing_lon],{radius:sel&&sel.date===r.date?9:6,color:'#0b0b0c',weight:1.5,
       fillColor:colour[r.burst_status],fillOpacity:r.confidence==='low'?.5:.95}).addTo(layer);
-    const f=fmtDate(r.date);m.bindTooltip(`${f.dow} ${f.dd}: ${Math.round(r.landing_km)} km ${r.landing_dir}`);m.on('click',()=>{sel=r;render()});});
-  if(sel){L_.polyline(sel.path,{color:'#b8a4ff',weight:3,opacity:.9}).addTo(layer);
+    const f=fmtDate(r.date);m.bindTooltip(`${f.dow} ${f.dd}: ${Math.round(r.landing_km)} km ${r.landing_dir}`);m.on('click',()=>{sel=r;selH=null;render()});});
+  if(selH&&C[selH]){Object.entries(C[selH].years).forEach(([y,v])=>{if(!v)return;L_.circleMarker([v.landing_lat,v.landing_lon],{radius:7,color:'#f3f2ee',weight:1.5,fillColor:colour[v.burst_status],fillOpacity:.9,dashArray:'2 2'}).addTo(layer).bindTooltip(`${y}: ${Math.round(v.landing_km)} km ${v.landing_dir}`);});}
+  else if(sel){L_.polyline(sel.path,{color:'#b8a4ff',weight:3,opacity:.9}).addTo(layer);
     L_.circleMarker([sel.burst_lat,sel.burst_lon],{radius:5,color:'#f3f2ee',weight:2,fillOpacity:0}).addTo(layer).bindTooltip('burst');}
 }
 
+function detailHist(){const el=document.getElementById('detail');const h=C[selH];const sm=h.summary;
+  const rows=Object.entries(h.years).sort().map(([y,v])=>v?`<tr><td>${y}</td><td><span class="badge ${mode==='burst'?v.burst_status:v.float_status}">${label[mode==='burst'?v.burst_status:v.float_status]}</span></td><td>${Math.round(v.landing_km)} km ${v.landing_dir}</td><td>${v.wind10_kmh??'–'}</td><td>${v.fog}</td><td class="small">${(v.reasons||[]).join('; ')}</td></tr>`:`<tr><td>${y}</td><td colspan="5" class="small">no data</td></tr>`).join('');
+  const d=new Date(h.target_year+'-'+h.date+'T00:00:00');
+  el.innerHTML=`<h2>${d.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'})} · what past years looked like</h2>
+   <p class="sub">The same dawn launch flown through ERA5 reanalysis winds of the previous ${sm.n} years. Not a forecast: a guide to how often this date works.</p>
+   <div class="kv"><div><span>Burst GO</span><b>${sm.go} of ${sm.n} years</b></div><div><span>Typical landing</span><b>${sm.landing_median_km} km</b></div>
+   <div><span>Landing range</span><b>${sm.landing_min_km}–${sm.landing_max_km} km</b></div><div><span>Good floating</span><b>${sm.float_good} of ${sm.n} years</b></div></div>
+   <table><tr><th>Year</th><th>Status</th><th>Landing</th><th>Wind km/h</th><th>Fog</th><th>Why not GO</th></tr>${rows}</table>`;}
 function detail(){
+  if(selH&&C[selH]){detailHist();return}
   const el=document.getElementById('detail');const r=sel;if(!r){el.innerHTML='<p class="small">Pick a day.</p>';return}
   const f=fmtDate(r.date),s=st(r);
   const kv=(k,v)=>`<div><span>${k}</span><b>${v??'–'}</b></div>`;
@@ -205,7 +219,7 @@ function detail(){
 }
 
 function evo(){
-  const r=sel;if(!r)return;const h=(H[r.date]||[]);const key=mode==='burst'?'landing_km':'band_min_ms';
+  const r=sel;if(!r||selH)return;const h=(H[r.date]||[]);const key=mode==='burst'?'landing_km':'band_min_ms';
   document.getElementById('evoSub').textContent=h.length<2?'Each daily run adds a point here, so you can watch the prediction settle as the day gets closer.':
     `${h.length} forecasts so far for ${r.date}, from ${h[0].lead_days} days ahead to ${h[h.length-1].lead_days}.`;
   const pts=h.map(e=>({x:e.run.slice(5,10).replace('-','/')+' '+e.run.slice(11,13)+'Z',y:mode==='burst'?e.landing_km:+(e.band_min_ms*3.6).toFixed(1),s:mode==='burst'?e.burst_status:e.float_status}));
@@ -216,7 +230,7 @@ function evo(){
 }
 
 function prof(){
-  const r=sel;if(!r||!r.profile)return;const p=r.profile;
+  const r=sel;if(!r||!r.profile||selH)return;const p=r.profile;
   if(profChart)profChart.destroy();
   const mk=(arr,lab,col)=>({label:lab,data:arr.map((x,i)=>({x:x,y:p.z_km[i]})),borderColor:col,pointRadius:0,borderWidth:2,showLine:true});
   const band=CF.float.band_km;
@@ -303,7 +317,7 @@ function render(){strip();drawMap();detail();evo();prof()}
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));b.classList.add('on');mode=b.dataset.mode;render()});
 header();
 document.getElementById('foot').innerHTML=`Forecast: ${FC?FC.model:'–'}; winds, fog and rain from the same model run. Trajectories are a simple ascent-burst-descent model, not a guarantee.
- Fog risk is a heuristic (model visibility, dew-point gap and calm wind). History cards use ERA5 reanalysis for the same dates in past years.
+ Fog risk is a heuristic (model visibility, dew-point gap and calm wind). Days 17–30 are history cards: the same dawn launch flown through ERA5 reanalysis winds of the previous 5 years (updated daily).
  Days 8–16 come from a single long-range model run: use them to spot promising periods, not to plan a recovery.`;
 initCalc();
 if(days.length){sel=days.find(r=>r.burst_status==='go')||days[0];initMap();initSettings();

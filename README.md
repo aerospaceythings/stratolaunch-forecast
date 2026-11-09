@@ -12,6 +12,12 @@ Every day at **13:20 AWST**, GitHub runs the forecast on its own servers and upd
 - **🛰️ Floating flight:** whether the 18–23.5 km band has a calm layer and a wide choice of wind directions. This is what a future floating platform would need.
 - **📈 How each day's forecast has changed:** every run is saved, so you can watch a date's prediction settle as the day gets closer.
 
+## Days 17–30: history window
+
+Past the 16-day forecast, the site shows **history cards**: the same dawn launch flown through ERA5 reanalysis weather for the same calendar date in each of the previous 5 years. Each card shows how many years it would have been GO, plus the typical and range of landing distances. Click a card for the year-by-year list.
+
+A separate daily job (`.github/workflows/history.yml`, 10:30 Perth time) downloads only the date that newly enters the window, so the window always reaches 30 days ahead. **It needs your Copernicus key:** in GitHub, **Settings → Secrets and variables → Actions → New repository secret**, name `CDSAPI_KEY`, value = the key from your `.cdsapirc` file (the part after `key:`). Without the secret the job skips quietly.
+
 ## Flight settings and burst calculator (on the website)
 
 - **Flight settings:** sliders for ascent rate, landing speed and burst altitude. Every landing is recalculated in your browser from a coarser (1°) copy of the same forecast winds. Defaults come from `config.yaml` (5 m/s up, 5 m/s landing, 33,500 m burst), and nothing you try on the page is saved.
