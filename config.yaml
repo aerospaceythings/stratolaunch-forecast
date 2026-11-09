@@ -1,0 +1,43 @@
+# Stratolaunch forecast – settings. Edit freely; the next daily run picks them up.
+
+site:
+  name: Northam launch site
+  lat: -31.6307
+  lon: 116.6918
+  ground_m: 154
+  timezone_hours: 8            # AWST
+  launch_minutes_before_sunrise: 15
+
+flight:                        # burst-balloon flight model (13 Oct 2026 flight)
+  ascent_ms: 6.3
+  burst_km: 33.5
+  descent_sea_level_ms: 5.0    # fall speed near the ground; faster higher up (1/sqrt(density))
+
+burst_mode:                    # GO only if every check passes
+  max_landing_km: 150
+  marginal_landing_km: 180     # 150-180 km = marginal
+  landing_on_land: true
+  max_launch_wind_kmh: 15      # 10 m wind at launch
+  marginal_launch_wind_kmh: 20
+  max_gust_kmh: 30             # gust above this = marginal
+  max_rain_mmh: 0.1            # launch to landing window
+  marginal_rain_mmh: 0.5
+  max_cape: 500                # J/kg; storm risk
+  marginal_cape: 1000
+  fog_allowed: low             # low | moderate
+  min_daylight_after_landing_h: 1
+
+float_mode:                    # watch-only: days that would suit a floating platform
+  band_km: [18, 23.5]
+  max_band_min_wind_ms: 3.0    # a calm layer somewhere in the band
+  min_steering_arc_deg: 150    # spread of wind directions available in the band
+  min_layer_speed_ms: 2.0      # layers slower than this don't count toward the arc
+
+# Places the balloon should not land (circles). Add your own.
+avoid_zones: []
+#  - {name: "RAAF Base Pearce", lat: -31.667, lon: 116.015, radius_km: 15}
+
+forecast:
+  model: gfs_0p25
+  box: {north: -28.5, south: -34.8, west: 113.5, east: 120.8}
+  max_days: 16

@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stratolaunch Forecast</title>
+<link rel="icon" href="assets/icon_white.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--bg:#0b0b0c;--panel:#141416;--surf:#1d1d21;--line:#2a2a30;--txt:#f3f2ee;--soft:#c9c8c3;--mute:#8d8c88;
+--lav:#b8a4ff;--lav2:#9b8ad6;--go:#5fd39a;--mar:#f0b44c;--nogo:#ef6b6b;--good:#b8a4ff;--fair:#7d7a92;--poor:#3a3940}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--txt);font-family:Poppins,Arial,sans-serif}
+a{color:var(--lav)}
+.wrap{max-width:1280px;margin:0 auto;padding:24px 16px 48px}
+header{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+header img{height:22px}
+.meta{color:var(--mute);font-size:13px}
+h1{font-size:clamp(28px,4vw,44px);font-weight:600;margin:28px 0 6px;letter-spacing:-.5px}
+.lede{color:var(--soft);font-weight:300;margin:0 0 20px;font-size:15px}
+.best{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px 20px;display:flex;gap:24px;flex-wrap:wrap;align-items:center;margin-bottom:20px}
+.best b{color:var(--lav)}
+.tabs{display:flex;gap:8px;margin:8px 0 16px}
+.tab{background:transparent;color:var(--soft);border:1px solid var(--line);border-radius:999px;padding:8px 16px;font:500 14px Poppins,Arial;cursor:pointer}
+.tab.on{background:var(--lav);color:#0b0b0c;border-color:var(--lav)}
+.strip{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(132px,1fr);gap:10px;overflow-x:auto;padding-bottom:10px;scrollbar-color:var(--line) transparent}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;cursor:pointer;min-height:150px;display:flex;flex-direction:column;gap:6px;transition:border-color .15s}
+.card:hover{border-color:var(--lav2)}
+.card.sel{border-color:var(--lav);box-shadow:0 0 0 1px var(--lav) inset}
+.card.low{opacity:.72}.card.clim{opacity:.55;border-style:dashed;cursor:default}
+.dow{font-size:12px;color:var(--mute);text-transform:uppercase;letter-spacing:1px}
+.dd{font-size:18px;font-weight:600}
+.badge{display:inline-block;font-size:12px;font-weight:600;border-radius:999px;padding:2px 10px;width:max-content}
+.go{background:var(--go);color:#0b0b0c}.marginal{background:var(--mar);color:#0b0b0c}.nogo{background:var(--nogo);color:#0b0b0c}
+.good{background:var(--good);color:#0b0b0c}.fair{background:var(--fair);color:var(--txt)}.poor{background:var(--poor);color:var(--soft)}
+.small{font-size:12px;color:var(--soft);line-height:1.45}
+.conf{font-size:11px;color:var(--mute);margin-top:auto}
+.grid{display:grid;grid-template-columns:1.25fr 1fr;gap:16px;margin-top:16px}
+@media (max-width:900px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px}
+.panel h2{font-size:18px;font-weight:600;margin:0 0 4px}.panel .sub{color:var(--mute);font-size:13px;margin:0 0 12px}
+#map{height:460px;border-radius:12px;background:#111}
+.checks{list-style:none;padding:0;margin:0 0 12px;display:grid;gap:6px}
+.checks li{display:flex;gap:10px;align-items:center;font-size:14px}
+.dot{width:10px;height:10px;border-radius:50%;flex:none}
+.kv{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:12px}
+.kv div{background:var(--surf);border-radius:10px;padding:8px 10px}.kv span{display:block;color:var(--mute);font-size:11px}.kv b{font-size:15px;font-weight:600}
+.chartbox{position:relative;height:240px}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left}th{color:var(--mute);font-weight:500}
+footer{color:var(--mute);font-size:12px;margin-top:28px;line-height:1.6}
+.leaflet-container{font-family:Poppins,Arial}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header><img src="assets/logo_white.svg" alt="APD Space"><div class="meta" id="meta"></div></header>
+<h1>Launch forecast</h1>
+<p class="lede" id="lede"></p>
+<div class="best" id="best"></div>
+<div class="tabs"><button class="tab on" data-mode="burst">Burst flight</button><button class="tab" data-mode="float">Floating (watch)</button></div>
+<div class="strip" id="strip"></div>
+<div class="grid">
+  <div class="panel"><h2 id="mapTitle">Predicted landings</h2><p class="sub" id="mapSub"></p><div id="map"></div></div>
+  <div class="panel" id="detail"></div>
+</div>
+<div class="grid">
+  <div class="panel"><h2>How the forecast for this day has changed</h2><p class="sub" id="evoSub"></p><div class="chartbox"><canvas id="evo"></canvas></div></div>
+  <div class="panel"><h2>Wind profile at launch</h2><p class="sub">Model winds above the launch site; shaded band = floating altitudes</p><div class="chartbox"><canvas id="prof"></canvas></div></div>
+</div>
+<footer id="foot"></footer>
+</div>
+<script>
+const D=/*__DATA__*/null;
+const FC=D.latest, H=D.history||{}, C=(D.climatology||{}).days||{}, CF=D.config;
+let mode='burst', sel=null, map, layer, evoChart, profChart;
+const days=(FC&&FC.days)||[];
+const fmtDate=s=>{const d=new Date(s+'T00:00:00');return {dow:d.toLocaleDateString('en-AU',{weekday:'short'}),dd:d.toLocaleDateString('en-AU',{day:'numeric',month:'short'})}};
+const label={go:'GO',marginal:'MARGINAL',nogo:'NO-GO',good:'GOOD',fair:'FAIR',poor:'POOR'};
+const colour={go:'#5fd39a',marginal:'#f0b44c',nogo:'#ef6b6b',good:'#b8a4ff',fair:'#7d7a92',poor:'#3a3940'};
+const st=r=>mode==='burst'?r.burst_status:r.float_status;
+
+function header(){
+  document.getElementById('meta').textContent=FC?`GFS run ${FC.cycle.replace('T',' ')} · updated ${FC.generated.replace('T',' ')}`:'no forecast yet';
+  const s=CF.site;
+  document.getElementById('lede').textContent=`${s.name} · launch ${s.launch_minutes_before_sunrise} min before sunrise · `+
+   `ascent ${CF.flight.ascent_ms} m/s, burst ${CF.flight.burst_km} km. Days further ahead are less certain and shown faded.`;
+  const b=document.getElementById('best');
+  if(!days.length){b.textContent='No forecast data yet.';return}
+  const goB=days.filter(r=>r.burst_status==='go'), goF=days.filter(r=>r.float_status==='good');
+  const t=r=>{const f=fmtDate(r.date);return `${f.dow} ${f.dd}`};
+  b.innerHTML=`<div><span class="small">Next GO day (burst)</span><br><b>${goB.length?t(goB[0])+' · '+goB[0].launch_local+' · '+Math.round(goB[0].landing_km)+' km '+goB[0].landing_dir:'none in the next '+days.length+' days'}</b></div>
+   <div><span class="small">GO days in the forecast</span><br><b>${goB.length} of ${days.length}</b></div>
+   <div><span class="small">Good floating days</span><br><b>${goF.length} of ${days.length}</b></div>`;
+}
+
+function strip(){
+  const el=document.getElementById('strip');el.innerHTML='';
+  days.forEach(r=>{
+    const f=fmtDate(r.date),s=st(r),c=document.createElement('div');
+    c.className='card'+(r.confidence==='low'?' low':'')+(sel&&sel.date===r.date?' sel':'');
+    const body=mode==='burst'?
+      `<div class="small">${Math.round(r.landing_km)} km ${r.landing_dir}${r.landing_over_ocean?' · ocean':''}<br>wind ${r.wind10_kmh!=null?Math.round(r.wind10_kmh):'–'} km/h<br>fog ${r.fog}<br>${r.rain_mmh>=CF.burst.max_rain_mmh?'rain':'dry'}${r.cape>=CF.burst.max_cape?' · storms':''}</div>`:
+      `<div class="small">calmest ${(r.band_min_ms*3.6).toFixed(0)} km/h<br>at ${r.band_min_alt_km.toFixed(1)} km<br>steering ${Math.round(r.steering_arc_deg)}°<br>turn ${r.zero_wind_km?r.zero_wind_km.toFixed(1)+' km':'–'}</div>`;
+    c.innerHTML=`<div class="dow">${f.dow} · ${r.launch_local}</div><div class="dd">${f.dd}</div><span class="badge ${s}">${label[s]}</span>${body}<div class="conf">${r.confidence} confidence · ${r.lead_days} d</div>`;
+    c.onclick=()=>{sel=r;render()};el.appendChild(c);
+  });
+  // climatology cards beyond the forecast horizon (next 30 days)
+  if(days.length){const last=new Date(days[days.length-1].date+'T00:00:00');
+    for(let k=1;k<=30-days.length;k++){const d=new Date(last);d.setDate(d.getDate()+k);
+      const key=String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const cl=C[key];if(!cl)continue;
+      const c=document.createElement('div');c.className='card clim';
+      c.innerHTML=`<div class="dow">${d.toLocaleDateString('en-AU',{weekday:'short'})} · history</div><div class="dd">${d.toLocaleDateString('en-AU',{day:'numeric',month:'short'})}</div>
+       <div class="small">typical ${cl.landing_median_km} km<br>range ${cl.landing_min_km}–${cl.landing_max_km} km<br>${cl.within_150_pct}% under 150 km</div><div class="conf">${cl.years} history</div>`;
+      el.appendChild(c);}}
+}
+
+function initMap(){
+  const s=CF.site;map=L_.map('map',{zoomControl:true}).setView([s.lat,s.lon+0.5],7);
+  L_.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap contributors © CARTO',subdomains:'abcd',maxZoom:12}).addTo(map);
+  [50,100,150].forEach(r=>L_.circle([s.lat,s.lon],{radius:r*1000,color:r===150?'#f3f2ee':'#9b8ad6',weight:1,fill:false,dashArray:r===150?'4 6':null}).addTo(map)
+    .bindTooltip(r+' km',{permanent:false}));
+  L_.circleMarker([s.lat,s.lon],{radius:6,color:'#0b0b0c',weight:2,fillColor:'#b8a4ff',fillOpacity:1}).addTo(map).bindTooltip('Launch site');
+  layer=L_.layerGroup().addTo(map);
+}
+const L_=window.L;
+
+function drawMap(){
+  layer.clearLayers();
+  document.getElementById('mapTitle').textContent=mode==='burst'?'Predicted landings':'Floating conditions';
+  document.getElementById('mapSub').textContent=mode==='burst'?'One dot per launch day, coloured by status. Click a day to see its flight path.':'Floating mode is judged above the launch site; the map shows burst landings for reference.';
+  days.forEach(r=>{const m=L_.circleMarker([r.landing_lat,r.landing_lon],{radius:sel&&sel.date===r.date?9:6,color:'#0b0b0c',weight:1.5,
+      fillColor:colour[r.burst_status],fillOpacity:r.confidence==='low'?.5:.95}).addTo(layer);
+    const f=fmtDate(r.date);m.bindTooltip(`${f.dow} ${f.dd}: ${Math.round(r.landing_km)} km ${r.landing_dir}`);m.on('click',()=>{sel=r;render()});});
+  if(sel){L_.polyline(sel.path,{color:'#b8a4ff',weight:3,opacity:.9}).addTo(layer);
+    L_.circleMarker([sel.burst_lat,sel.burst_lon],{radius:5,color:'#f3f2ee',weight:2,fillOpacity:0}).addTo(layer).bindTooltip('burst');}
+}
+
+function detail(){
+  const el=document.getElementById('detail');const r=sel;if(!r){el.innerHTML='<p class="small">Pick a day.</p>';return}
+  const f=fmtDate(r.date),s=st(r);
+  const kv=(k,v)=>`<div><span>${k}</span><b>${v??'–'}</b></div>`;
+  let checks='';
+  if(mode==='burst'){checks=r.burst_checks.map(c=>`<li><span class="dot" style="background:${colour[c.level]}"></span>${c.text}</li>`).join('');}
+  else{const fc=CF.float;checks=`<li><span class="dot" style="background:${r.float_checks.calm_layer?colour.good:colour.poor}"></span>calmest layer ${(r.band_min_ms*3.6).toFixed(0)} km/h at ${r.band_min_alt_km.toFixed(1)} km (want under ${(fc.max_band_min_wind_ms*3.6).toFixed(0)})</li>
+    <li><span class="dot" style="background:${r.float_checks.steering?colour.good:colour.poor}"></span>steering menu ${Math.round(r.steering_arc_deg)}° of directions (want ${fc.min_steering_arc_deg}°+)</li>`;}
+  el.innerHTML=`<h2>${f.dow} ${f.dd} · launch ${r.launch_local}</h2><p class="sub">sunrise ${r.sunrise_local} · ${r.confidence} confidence (${r.lead_days} days ahead)</p>
+   <span class="badge ${s}" style="margin-bottom:12px">${label[s]}</span><ul class="checks" style="margin-top:12px">${checks}</ul>
+   <div class="kv">${kv('Landing',Math.round(r.landing_km)+' km '+r.landing_dir)}${kv('Burst point',Math.round(r.burst_km)+' km away')}${kv('Flight time',r.flight_min+' min')}
+   ${kv('Launch wind',r.wind10_kmh!=null?r.wind10_kmh+' km/h':null)}${kv('Gusts',r.gust_kmh!=null?r.gust_kmh+' km/h':null)}${kv('Visibility',r.vis_km!=null?r.vis_km+' km':null)}
+   ${kv('Dew-point gap',r.dewpoint_gap_c!=null?r.dewpoint_gap_c+' °C':null)}${kv('Low cloud',r.low_cloud_pct!=null?r.low_cloud_pct+'%':null)}${kv('Total cloud',r.total_cloud_pct!=null?r.total_cloud_pct+'%':null)}
+   ${kv('Jet stream',Math.round(r.jet_kmh)+' km/h at '+r.jet_alt_km.toFixed(1)+' km')}${kv('Wind turns at',r.zero_wind_km?r.zero_wind_km.toFixed(1)+' km':null)}${kv('Daylight after landing',r.daylight_after_landing_h+' h')}</div>`;
+}
+
+function evo(){
+  const r=sel;if(!r)return;const h=(H[r.date]||[]);const key=mode==='burst'?'landing_km':'band_min_ms';
+  document.getElementById('evoSub').textContent=h.length<2?'Each daily run adds a point here, so you can watch the prediction settle as the day gets closer.':
+    `${h.length} forecasts so far for ${r.date}, from ${h[0].lead_days} days ahead to ${h[h.length-1].lead_days}.`;
+  const pts=h.map(e=>({x:e.run.slice(5,10).replace('-','/')+' '+e.run.slice(11,13)+'Z',y:mode==='burst'?e.landing_km:+(e.band_min_ms*3.6).toFixed(1),s:mode==='burst'?e.burst_status:e.float_status}));
+  if(evoChart)evoChart.destroy();
+  evoChart=new Chart(document.getElementById('evo'),{type:'line',data:{labels:pts.map(p=>p.x),datasets:[{data:pts.map(p=>p.y),borderColor:'#9b8ad6',pointBackgroundColor:pts.map(p=>colour[p.s]),pointRadius:6,tension:.25}]},
+    options:{maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8d8c88'},grid:{color:'#222'}},
+      y:{beginAtZero:true,title:{display:true,text:mode==='burst'?'predicted landing distance, km':'calmest wind in band, km/h',color:'#8d8c88'},ticks:{color:'#8d8c88'},grid:{color:'#222'}}}}});
+}
+
+function prof(){
+  const r=sel;if(!r||!r.profile)return;const p=r.profile;
+  if(profChart)profChart.destroy();
+  const mk=(arr,lab,col)=>({label:lab,data:arr.map((x,i)=>({x:x,y:p.z_km[i]})),borderColor:col,pointRadius:0,borderWidth:2,showLine:true});
+  const band=CF.float.band_km;
+  profChart=new Chart(document.getElementById('prof'),{type:'scatter',data:{datasets:[mk(p.u_kmh,'east-west (+ toward east)','#b8a4ff'),mk(p.v_kmh,'north-south (+ toward north)','#f0b44c'),
+      {label:'band',data:[{x:0,y:band[0]},{x:0,y:band[1]}],borderColor:'rgba(184,164,255,.0)',pointRadius:0}]},
+    options:{maintainAspectRatio:false,plugins:{legend:{labels:{color:'#c9c8c3',filter:i=>i.text!=='band'}}},
+      scales:{x:{title:{display:true,text:'km/h',color:'#8d8c88'},ticks:{color:'#8d8c88'},grid:{color:ctx=>ctx.tick.value===0?'#666':'#222'}},
+              y:{min:0,max:35,title:{display:true,text:'altitude, km',color:'#8d8c88'},ticks:{color:'#8d8c88'},grid:{color:ctx=>(ctx.tick.value>=band[0]&&ctx.tick.value<=band[1])?'rgba(184,164,255,.35)':'#222'}}}}});
+}
+
+function render(){strip();drawMap();detail();evo();prof()}
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));b.classList.add('on');mode=b.dataset.mode;render()});
+header();
+document.getElementById('foot').innerHTML=`Forecast: ${FC?FC.model:'–'}; winds, fog and rain from the same model run. Trajectories are a simple ascent-burst-descent model, not a guarantee.
+ Fog risk is a heuristic (model visibility, dew-point gap and calm wind). History cards use ERA5 reanalysis for the same dates in past years.
+ Days 8–16 come from a single long-range model run: use them to spot promising periods, not to plan a recovery.`;
+if(days.length){sel=days.find(r=>r.burst_status==='go')||days[0];initMap();render();
+  map.fitBounds(L_.latLngBounds([[CF.site.lat,CF.site.lon],...days.map(r=>[r.landing_lat,r.landing_lon])]).pad(0.25),{maxZoom:9});}
+</script>
+</body>
+</html>
