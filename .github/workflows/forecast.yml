@@ -5,7 +5,7 @@ on:
     - cron: '20 5 * * *'      # 13:20 AWST, after the 00Z GFS run is complete
   workflow_dispatch:           # "Run workflow" button in the Actions tab
   push:
-    paths: ['config.yaml', 'forecast/**']
+    paths: ['config.yaml', 'forecast/**', '.github/workflows/**']
 
 permissions:
   contents: write
@@ -21,8 +21,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+        with:
+          ref: main            # always start from the newest saved history, also on re-runs
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: pip
@@ -35,9 +37,10 @@ jobs:
           git config user.email "forecast-bot@users.noreply.github.com"
           git add data
           git diff --cached --quiet || git commit -m "Forecast $(date -u +%Y-%m-%dT%H:%MZ)"
-          git pull --rebase --autostash
+          # if another run saved meanwhile, keep this run's files (-X theirs = the commit being replayed)
+          git pull --rebase -X theirs || { git checkout --theirs data && git add data && GIT_EDITOR=true git rebase --continue; }
           git push
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v4
         with:
           path: site
 
