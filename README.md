@@ -12,6 +12,12 @@ Every day at **13:20 AWST**, GitHub runs the forecast on its own servers and upd
 - **🛰️ Floating flight:** whether the 18–23.5 km band has a calm layer and a wide choice of wind directions. This is what a future floating platform would need.
 - **📈 How each day's forecast has changed:** every run is saved, so you can watch a date's prediction settle as the day gets closer.
 
+## Flight settings and burst calculator (on the website)
+
+- **Flight settings:** sliders for ascent rate, landing speed and burst altitude. Every landing is recalculated in your browser from a coarser (1°) copy of the same forecast winds. Defaults come from `config.yaml` (5 m/s up, 5 m/s landing, 33,500 m burst), and nothing you try on the page is saved.
+- **Burst altitude calculator:** pick a balloon (Totex or Hwoyee nominal sizes, or custom), enter the payload mass and gas, and fill by target ascent rate or neck lift. It gives burst altitude, ascent rate, neck lift and time to burst, using the same method as the CUSF burst calculator. **Use this…** pushes the result into the flight settings.
+- **Map background:** switch between Dark / Streets / Satellite (top-right). If one provider is blocked, the next one loads automatically. To use your own tile service with an API key, set `map.custom_tiles_url` in `config.yaml`.
+
 ## How confident is it?
 
 | Days ahead | Confidence | Use it for |

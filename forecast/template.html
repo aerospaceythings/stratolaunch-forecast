@@ -51,6 +51,19 @@ h1{font-size:clamp(28px,4vw,44px);font-weight:600;margin:28px 0 6px;letter-spaci
 .kv div{background:var(--surf);border-radius:10px;padding:8px 10px}.kv span{display:block;color:var(--mute);font-size:11px}.kv b{font-size:15px;font-weight:600}
 .chartbox{position:relative;height:240px}
 table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left}th{color:var(--mute);font-weight:500}
+details.panel{margin:0 0 12px}details.panel>summary{cursor:pointer;font-weight:600;font-size:15px;list-style:none}
+details.panel>summary::before{content:'▸ ';color:var(--lav)}details.panel[open]>summary::before{content:'▾ '}
+.sliders{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin:14px 0}
+.sliders label,.form label{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--soft)}
+.sliders label b{color:var(--txt);font-size:16px}
+input[type=range]{accent-color:var(--lav);width:100%}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:14px 0}
+.form input,.form select{background:var(--surf);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:8px;font:14px Poppins,Arial}
+.btn{background:var(--lav);color:#0b0b0c;border:0;border-radius:999px;padding:8px 16px;font:600 14px Poppins,Arial;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--soft);border:1px solid var(--line)}
+.out{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:12px 0}
+.out div{background:var(--surf);border-radius:10px;padding:8px 10px}.out span{display:block;color:var(--mute);font-size:11px}.out b{font-size:16px}
+.big b{color:var(--lav);font-size:22px}
 footer{color:var(--mute);font-size:12px;margin-top:28px;line-height:1.6}
 .leaflet-container{font-family:Poppins,Arial}
 </style>
@@ -62,6 +75,30 @@ footer{color:var(--mute);font-size:12px;margin-top:28px;line-height:1.6}
 <p class="lede" id="lede"></p>
 <div class="best" id="best"></div>
 <div class="tabs"><button class="tab on" data-mode="burst">Burst flight</button><button class="tab" data-mode="float">Floating (watch)</button></div>
+<details class="panel" id="settings"><summary>Flight settings <span class="small" id="setSummary" style="font-weight:400"></span></summary>
+  <div class="sliders">
+    <label>Ascent rate <b id="vAsc"></b><input type="range" id="sAsc" min="2" max="8" step="0.1"></label>
+    <label>Landing speed (near the ground) <b id="vDes"></b><input type="range" id="sDes" min="3" max="10" step="0.1"></label>
+    <label>Burst altitude <b id="vBur"></b><input type="range" id="sBur" min="20" max="40" step="0.1"></label>
+  </div>
+  <button class="btn ghost" id="reset">Reset to defaults</button>
+  <p class="small" id="setNote" style="margin:10px 0 0"></p>
+</details>
+<details class="panel" id="calc"><summary>Burst altitude calculator</summary>
+  <p class="small" style="margin:10px 0 0">Estimate burst altitude from your balloon, payload and fill. Burst diameters are nominal manufacturer values: check your balloon's datasheet.</p>
+  <div class="form">
+    <label>Balloon<select id="cBal"></select></label>
+    <label>Balloon mass, g<input id="cMb" type="number" step="10"></label>
+    <label>Burst diameter, m<input id="cDb" type="number" step="0.01"></label>
+    <label>Drag coefficient<input id="cCd" type="number" step="0.01"></label>
+    <label>Payload mass (everything under the balloon), g<input id="cMp" type="number" step="10" value="1500"></label>
+    <label>Gas<select id="cGas"><option value="he">Helium</option><option value="h2">Hydrogen</option></select></label>
+    <label>Fill by<select id="cMode"><option value="ascent">target ascent rate</option><option value="neck">neck lift</option></select></label>
+    <label><span id="cValLab">Target ascent rate, m/s</span><input id="cVal" type="number" step="0.1" value="5"></label>
+  </div>
+  <div class="out" id="cOut"></div>
+  <button class="btn" id="cUse">Use this burst altitude and ascent rate in the forecast</button>
+</details>
 <div class="strip" id="strip"></div>
 <div class="grid">
   <div class="panel"><h2 id="mapTitle">Predicted landings</h2><p class="sub" id="mapSub"></p><div id="map"></div></div>
@@ -77,7 +114,10 @@ footer{color:var(--mute);font-size:12px;margin-top:28px;line-height:1.6}
 const D=/*__DATA__*/null;
 const FC=D.latest, H=D.history||{}, C=(D.climatology||{}).days||{}, CF=D.config;
 let mode='burst', sel=null, map, layer, evoChart, profChart;
-const days=(FC&&FC.days)||[];
+const BASE=(FC&&FC.days)||[];
+let days=BASE;
+const DEF={asc:CF.flight.ascent_ms,des:CF.flight.descent_sea_level_ms,bur:CF.flight.burst_km};
+let SET={...DEF};
 const fmtDate=s=>{const d=new Date(s+'T00:00:00');return {dow:d.toLocaleDateString('en-AU',{weekday:'short'}),dd:d.toLocaleDateString('en-AU',{day:'numeric',month:'short'})}};
 const label={go:'GO',marginal:'MARGINAL',nogo:'NO-GO',good:'GOOD',fair:'FAIR',poor:'POOR'};
 const colour={go:'#5fd39a',marginal:'#f0b44c',nogo:'#ef6b6b',good:'#b8a4ff',fair:'#7d7a92',poor:'#3a3940'};
@@ -87,7 +127,7 @@ function header(){
   document.getElementById('meta').textContent=FC?`GFS run ${FC.cycle.replace('T',' ')} · updated ${FC.generated.replace('T',' ')}`:'no forecast yet';
   const s=CF.site;
   document.getElementById('lede').textContent=`${s.name} · launch ${s.launch_minutes_before_sunrise} min before sunrise · `+
-   `ascent ${CF.flight.ascent_ms} m/s, burst ${CF.flight.burst_km} km. Days further ahead are less certain and shown faded.`;
+   `ascent ${SET.asc} m/s, burst ${SET.bur} km, landing ${SET.des} m/s. Days further ahead are less certain and shown faded.`;
   const b=document.getElementById('best');
   if(!days.length){b.textContent='No forecast data yet.';return}
   const goB=days.filter(r=>r.burst_status==='go'), goF=days.filter(r=>r.float_status==='good');
@@ -120,7 +160,15 @@ function strip(){
 
 function initMap(){
   const s=CF.site;map=L_.map('map',{zoomControl:true}).setView([s.lat,s.lon+0.5],7);
-  L_.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap contributors © CARTO',subdomains:'abcd',maxZoom:12}).addTo(map);
+  const base={};
+  if(CF.map&&CF.map.custom_tiles_url)base['Custom']=L_.tileLayer(CF.map.custom_tiles_url,{attribution:CF.map.custom_tiles_attribution||'',maxZoom:14});
+  base['Dark']=L_.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap contributors © CARTO',subdomains:'abcd',maxZoom:14});
+  base['Streets']=L_.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:14});
+  base['Satellite']=L_.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{attribution:'Imagery © Esri',maxZoom:14});
+  const order=Object.keys(base);let cur=0,errs=0,shown=0;
+  const use=i=>{Object.values(base).forEach(l=>map.removeLayer(l));errs=0;shown=0;base[order[i]].addTo(map);};
+  Object.values(base).forEach(l=>{l.on('tileerror',()=>{if(map.hasLayer(l)&&!shown&&++errs>=4&&cur<order.length-1){cur++;use(cur);}});l.on('tileload',()=>{shown++;});});
+  use(0);L_.control.layers(base,null,{position:'topright'}).addTo(map);
   [50,100,150].forEach(r=>L_.circle([s.lat,s.lon],{radius:r*1000,color:r===150?'#f3f2ee':'#9b8ad6',weight:1,fill:false,dashArray:r===150?'4 6':null}).addTo(map)
     .bindTooltip(r+' km',{permanent:false}));
   L_.circleMarker([s.lat,s.lon],{radius:6,color:'#0b0b0c',weight:2,fillColor:'#b8a4ff',fillOpacity:1}).addTo(map).bindTooltip('Launch site');
@@ -178,13 +226,87 @@ function prof(){
               y:{min:0,max:35,title:{display:true,text:'altitude, km',color:'#8d8c88'},ticks:{color:'#8d8c88'},grid:{color:ctx=>(ctx.tick.value>=band[0]&&ctx.tick.value<=band[1])?'rgba(184,164,255,.35)':'#222'}}}}});
 }
 
+// ---------- what-if flight settings (recomputed in the browser from a 1° wind grid)
+let WG=null;
+async function winds(){if(WG)return WG;const j=await (await fetch('winds.json',{cache:'no-store'})).json();
+  const dec=(b,s)=>{const by=Uint8Array.from(atob(b),c=>c.charCodeAt(0));const i=new Int16Array(by.buffer);const f=new Float32Array(i.length);for(let k=0;k<i.length;k++)f[k]=i[k]*s;return f};
+  WG={...j,U:dec(j.u,j.scale.u),V:dec(j.v,j.scale.v),G:dec(j.gh,j.scale.gh)};return WG}
+function frac(arr,x){const n=arr.length;if(x<=arr[0])return[0,0];if(x>=arr[n-1])return[n-2,1];let i=0;while(arr[i+1]<x)i++;return[i,(x-arr[i])/(arr[i+1]-arr[i])]}
+function column(t,lat,lon){const W=WG,[T,Lv,Y,X]=W.shape;const [ti,tf]=frac(W.hours,t),[yi,yf]=frac(W.lats,lat),[xi,xf]=frac(W.lons,lon);
+  const u=new Float32Array(Lv),v=new Float32Array(Lv),h=new Float32Array(Lv);
+  for(let a=0;a<2;a++)for(let b=0;b<2;b++)for(let c=0;c<2;c++){const w=(a?tf:1-tf)*(b?yf:1-yf)*(c?xf:1-xf);if(!w)continue;
+    for(let l=0;l<Lv;l++){const k=(((ti+a)*Lv+l)*Y+(yi+b))*X+(xi+c);u[l]+=w*W.U[k];v[l]+=w*W.V[k];h[l]+=w*W.G[k];}}
+  return{u,v,h}}
+function interpH(z,c){const h=c.h;let n=h.length;if(z<=h[0])return[c.u[0],c.v[0]];if(z>=h[n-1])return[c.u[n-1],c.v[n-1]];
+  let i=0;while(h[i+1]<z)i++;const f=(z-h[i])/(h[i+1]-h[i]);return[c.u[i]+f*(c.u[i+1]-c.u[i]),c.v[i]+f*(c.v[i+1]-c.v[i])]}
+const KMD=111.32;
+function flyJS(t0,asc,des,burstKm){const s=CF.site;let lat=s.lat,lon=s.lon,h=s.ground_m,t=t0,b=null,k=0;const dt=20,path=[[lat,lon]];
+  while(k<20000){const [u,v]=interpH(h,column(t,lat,lon));lat+=v*dt/1000/KMD;lon+=u*dt/1000/(KMD*Math.cos(lat*Math.PI/180));t+=dt/3600;k++;
+    if(!b){h+=asc*dt;if(h>=burstKm*1000)b=[lat,lon];}else{h-=des*Math.sqrt(Math.exp(h/7200))*dt;}
+    if(k%15===0)path.push([+lat.toFixed(4),+lon.toFixed(4)]);
+    if(b&&h<=s.ground_m){path.push([lat,lon]);return{lat,lon,b,min:(t-t0)*60,path}}}
+  return null}
+function distB(lat0,lon0,lat,lon){const dy=(lat-lat0)*KMD,dx=(lon-lon0)*KMD*Math.cos(lat0*Math.PI/180);return[Math.hypot(dx,dy),(Math.atan2(dx,dy)*180/Math.PI+360)%360]}
+const DIRS=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];const compass=b=>DIRS[Math.floor((b+11.25)/22.5)%16];
+const COAST=[[-28.5,114.6],[-29,114.9],[-29.5,114.97],[-30,115],[-30.5,115.06],[-31,115.33],[-31.5,115.62],[-32,115.75],[-32.5,115.73],[-33,115.67],[-33.3,115.64],[-33.55,115.35],[-34,115.05],[-34.4,115.15]];
+function ocean(lat,lon){if(lat<COAST[COAST.length-1][0])return true;for(let i=0;i<COAST.length-1;i++){const[a,b]=[COAST[i],COAST[i+1]];if(lat<=a[0]&&lat>=b[0]){const f=(a[0]-lat)/(a[0]-b[0]);return lon<a[1]+f*(b[1]-a[1])}}return lon<COAST[0][1]}
+function recheck(r){const c=CF.burst,L=r.landing_km;const keep=r.burst_checks.filter(x=>!['landing','zone','daylight'].includes(x.check));const add=[];
+  if(r.landing_over_ocean)add.push({check:'landing',level:'nogo',text:'lands over the ocean'});
+  else if(L>c.marginal_landing_km)add.push({check:'landing',level:'nogo',text:`lands ${Math.round(L)} km away`});
+  else if(L>c.max_landing_km)add.push({check:'landing',level:'marginal',text:`lands ${Math.round(L)} km away`});
+  else add.push({check:'landing',level:'go',text:`${Math.round(L)} km ${r.landing_dir}`});
+  (CF.avoid||[]).forEach(z=>{if(distB(z.lat,z.lon,r.landing_lat,r.landing_lon)[0]<z.radius_km)add.push({check:'zone',level:'nogo',text:'lands in '+z.name})});
+  if(r.daylight_after_landing_h<c.min_daylight_after_landing_h)add.push({check:'daylight',level:'nogo',text:'lands too close to sunset'});
+  const all=[...add,...keep],lv=all.map(x=>x.level);return[lv.includes('nogo')?'nogo':lv.includes('marginal')?'marginal':'go',all]}
+const isDef=()=>Math.abs(SET.asc-DEF.asc)<1e-6&&Math.abs(SET.des-DEF.des)<1e-6&&Math.abs(SET.bur-DEF.bur)<1e-6;
+async function applySettings(){
+  document.getElementById('vAsc').textContent=SET.asc.toFixed(1)+' m/s';document.getElementById('vDes').textContent=SET.des.toFixed(1)+' m/s';document.getElementById('vBur').textContent=(SET.bur*1000).toLocaleString('en-AU')+' m';
+  document.getElementById('setSummary').textContent=`· ascent ${SET.asc.toFixed(1)} m/s · landing ${SET.des.toFixed(1)} m/s · burst ${(SET.bur*1000).toLocaleString('en-AU')} m${isDef()?' (defaults)':''}`;
+  const note=document.getElementById('setNote');
+  if(isDef()){days=BASE;note.textContent='Showing the daily run (full-resolution winds). Move a slider to try other values: landings are recalculated in your browser.';}
+  else{try{await winds();}catch(e){note.textContent='What-if winds are not available yet; they appear after the next daily run.';return}
+    days=BASE.map(r=>{const f=flyJS(r.fh,SET.asc,SET.des,SET.bur);if(!f)return r;const[L,b]=distB(CF.site.lat,CF.site.lon,f.lat,f.lon);const[B]=distB(CF.site.lat,CF.site.lon,f.b[0],f.b[1]);
+      const n={...r,landing_lat:+f.lat.toFixed(4),landing_lon:+f.lon.toFixed(4),landing_km:+L.toFixed(1),landing_bearing:Math.round(b),landing_dir:compass(b),landing_over_ocean:ocean(f.lat,f.lon),
+        burst_lat:f.b[0],burst_lon:f.b[1],burst_km:+B.toFixed(1),flight_min:Math.round(f.min),path:f.path,daylight_after_landing_h:+(r.sunset_fh-(r.fh+f.min/60)).toFixed(1)};
+      [n.burst_status,n.burst_checks]=recheck(n);return n});
+    note.textContent='What-if: recalculated in your browser from a coarser (1°) copy of the same forecast winds, so numbers can differ by a few km from the daily run. Settings are not saved; change config.yaml to change the daily defaults.';}
+  if(sel)sel=days.find(r=>r.date===sel.date)||days[0];header();render();}
+function initSettings(){const S=[['sAsc','asc'],['sDes','des'],['sBur','bur']];
+  S.forEach(([id,k])=>{const el=document.getElementById(id);el.value=SET[k];el.oninput=()=>{SET[k]=+el.value;clearTimeout(window._t);window._t=setTimeout(applySettings,150)};});
+  document.getElementById('reset').onclick=()=>{SET={...DEF};S.forEach(([id,k])=>document.getElementById(id).value=SET[k]);applySettings()};applySettings();}
+
+// ---------- burst calculator (method of the CUSF burst calculator)
+const BALLOONS={'Totex 200 g':[200,3.00],'Totex 300 g':[300,3.78],'Totex 350 g':[350,4.12],'Totex 450 g':[450,4.72],'Totex 500 g':[500,4.99],'Totex 600 g':[600,6.02],'Totex 700 g':[700,6.53],'Totex 800 g':[800,7.00],'Totex 1000 g':[1000,7.86],'Totex 1200 g':[1200,8.63],'Totex 1500 g':[1500,9.44],'Totex 2000 g':[2000,10.54],'Totex 3000 g':[3000,13.00],
+ 'Hwoyee 200 g':[200,3.00],'Hwoyee 300 g':[300,3.80],'Hwoyee 400 g':[400,4.50],'Hwoyee 500 g':[500,5.00],'Hwoyee 600 g':[600,5.80],'Hwoyee 800 g':[800,6.80],'Hwoyee 1000 g':[1000,7.50],'Hwoyee 1200 g':[1200,8.50],'Hwoyee 1600 g':[1600,10.50],'Hwoyee 2000 g':[2000,11.00],'Custom':null};
+function burstCalc(mb,mp,Db,Cd,gas,modeC,val){const ra=1.2050,rg=gas==='he'?0.1786:0.0899,g=9.80665,Hs=7238.3;mb/=1000;mp/=1000;
+  const Vb=4/3*Math.PI*Math.pow(Db/2,3);const asc=V=>{const fl=(ra-rg)*V-mb-mp;if(fl<=0)return 0;const r=Math.cbrt(3*V/(4*Math.PI));return Math.sqrt(2*fl*g/(ra*Cd*Math.PI*r*r))};
+  let V;if(modeC==='neck'){V=(val/1000+mb)/(ra-rg);}else{let lo=(mb+mp)/(ra-rg)*1.0001,hi=lo*50;for(let i=0;i<80;i++){const m=(lo+hi)/2;asc(m)<val?lo=m:hi=m;}V=(lo+hi)/2;}
+  const a=asc(V);if(a<=0)return{err:'Not enough lift: add gas or reduce the payload.'};
+  const alt=-Hs*Math.log(V/Vb);return{alt,asc:a,V,D:2*Math.cbrt(3*V/(4*Math.PI)),neck:((ra-rg)*V-mb)*1000,free:((ra-rg)*V-mb-mp)*1000,tmin:alt/a/60}}
+function initCalc(){const sel_=document.getElementById('cBal');Object.keys(BALLOONS).forEach(k=>sel_.add(new Option(k,k)));sel_.value='Totex 1200 g';
+  const ids=['cMb','cDb','cCd','cMp','cGas','cMode','cVal'],g=i=>document.getElementById(i);
+  const fill=()=>{const b=BALLOONS[sel_.value];if(b){g('cMb').value=b[0];g('cDb').value=b[1];}if(!g('cCd').value)g('cCd').value=0.25;calc()};
+  let last=null;
+  const calc=()=>{g('cValLab').textContent=g('cMode').value==='neck'?'Neck lift, g':'Target ascent rate, m/s';
+    const r=burstCalc(+g('cMb').value,+g('cMp').value,+g('cDb').value,+g('cCd').value,g('cGas').value,g('cMode').value,+g('cVal').value);last=r;
+    const o=g('cOut');if(r.err){o.innerHTML=`<div><b>${r.err}</b></div>`;return}
+    const kv=(k,v,c='')=>`<div class="${c}"><span>${k}</span><b>${v}</b></div>`;
+    o.innerHTML=kv('Burst altitude',Math.round(r.alt).toLocaleString('en-AU')+' m','big')+kv('Ascent rate',r.asc.toFixed(2)+' m/s')+kv('Neck lift',Math.round(r.neck)+' g')+kv('Free lift',Math.round(r.free)+' g')+
+      kv('Gas volume at launch',r.V.toFixed(2)+' m³')+kv('Diameter at launch',r.D.toFixed(2)+' m')+kv('Time to burst',Math.round(r.tmin)+' min');};
+  sel_.onchange=fill;ids.forEach(i=>g(i).oninput=()=>{if(['cMb','cDb'].includes(i))sel_.value='Custom';calc()});
+  g('cUse').onclick=()=>{if(!last||last.err)return;SET.bur=Math.min(40,Math.max(20,+(last.alt/1000).toFixed(1)));SET.asc=Math.min(8,Math.max(2,+last.asc.toFixed(1)));
+    document.getElementById('sBur').value=SET.bur;document.getElementById('sAsc').value=SET.asc;document.getElementById('settings').open=true;applySettings();
+    document.getElementById('settings').scrollIntoView({behavior:'smooth'});};
+  fill();}
+
 function render(){strip();drawMap();detail();evo();prof()}
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));b.classList.add('on');mode=b.dataset.mode;render()});
 header();
 document.getElementById('foot').innerHTML=`Forecast: ${FC?FC.model:'–'}; winds, fog and rain from the same model run. Trajectories are a simple ascent-burst-descent model, not a guarantee.
  Fog risk is a heuristic (model visibility, dew-point gap and calm wind). History cards use ERA5 reanalysis for the same dates in past years.
  Days 8–16 come from a single long-range model run: use them to spot promising periods, not to plan a recovery.`;
-if(days.length){sel=days.find(r=>r.burst_status==='go')||days[0];initMap();render();
+initCalc();
+if(days.length){sel=days.find(r=>r.burst_status==='go')||days[0];initMap();initSettings();
   map.fitBounds(L_.latLngBounds([[CF.site.lat,CF.site.lon],...days.map(r=>[r.landing_lat,r.landing_lon])]).pad(0.25),{maxZoom:9});}
 </script>
 </body>
