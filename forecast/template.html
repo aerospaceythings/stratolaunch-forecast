@@ -85,7 +85,7 @@ footer{color:var(--mute);font-size:12px;margin-top:28px;line-height:1.6}
   <p class="small" id="setNote" style="margin:10px 0 0"></p>
 </details>
 <details class="panel" id="calc"><summary>Burst altitude calculator</summary>
-  <p class="small" style="margin:10px 0 0">Estimate burst altitude from your balloon, payload and fill. Burst diameters are nominal manufacturer values: check your balloon's datasheet.</p>
+  <p class="small" style="margin:10px 0 0">Estimate burst altitude from your balloon, payload and fill. Kaymont burst diameters: 1000–1500 g from Kaymont's published table (25.8 / 28.3 / 31.0 ft); 2000 and 3000 g are the nominal values of the same Totex-made range – check the datasheet that came with your balloon.</p>
   <div class="form">
     <label>Balloon<select id="cBal"></select></label>
     <label>Balloon mass, g<input id="cMb" type="number" step="10"></label>
@@ -276,14 +276,13 @@ function initSettings(){const S=[['sAsc','asc'],['sDes','des'],['sBur','bur']];
   document.getElementById('reset').onclick=()=>{SET={...DEF};S.forEach(([id,k])=>document.getElementById(id).value=SET[k]);applySettings()};applySettings();}
 
 // ---------- burst calculator (method of the CUSF burst calculator)
-const BALLOONS={'Totex 200 g':[200,3.00],'Totex 300 g':[300,3.78],'Totex 350 g':[350,4.12],'Totex 450 g':[450,4.72],'Totex 500 g':[500,4.99],'Totex 600 g':[600,6.02],'Totex 700 g':[700,6.53],'Totex 800 g':[800,7.00],'Totex 1000 g':[1000,7.86],'Totex 1200 g':[1200,8.63],'Totex 1500 g':[1500,9.44],'Totex 2000 g':[2000,10.54],'Totex 3000 g':[3000,13.00],
- 'Hwoyee 200 g':[200,3.00],'Hwoyee 300 g':[300,3.80],'Hwoyee 400 g':[400,4.50],'Hwoyee 500 g':[500,5.00],'Hwoyee 600 g':[600,5.80],'Hwoyee 800 g':[800,6.80],'Hwoyee 1000 g':[1000,7.50],'Hwoyee 1200 g':[1200,8.50],'Hwoyee 1600 g':[1600,10.50],'Hwoyee 2000 g':[2000,11.00],'Custom':null};
+const BALLOONS={'Kaymont 1000 g':[1000,7.86],'Kaymont 1200 g':[1200,8.63],'Kaymont 1500 g':[1500,9.45],'Kaymont 2000 g':[2000,10.54],'Kaymont 3000 g':[3000,13.00],'Custom':null};
 function burstCalc(mb,mp,Db,Cd,gas,modeC,val){const ra=1.2050,rg=gas==='he'?0.1786:0.0899,g=9.80665,Hs=7238.3;mb/=1000;mp/=1000;
   const Vb=4/3*Math.PI*Math.pow(Db/2,3);const asc=V=>{const fl=(ra-rg)*V-mb-mp;if(fl<=0)return 0;const r=Math.cbrt(3*V/(4*Math.PI));return Math.sqrt(2*fl*g/(ra*Cd*Math.PI*r*r))};
   let V;if(modeC==='neck'){V=(val/1000+mb)/(ra-rg);}else{let lo=(mb+mp)/(ra-rg)*1.0001,hi=lo*50;for(let i=0;i<80;i++){const m=(lo+hi)/2;asc(m)<val?lo=m:hi=m;}V=(lo+hi)/2;}
   const a=asc(V);if(a<=0)return{err:'Not enough lift: add gas or reduce the payload.'};
   const alt=-Hs*Math.log(V/Vb);return{alt,asc:a,V,D:2*Math.cbrt(3*V/(4*Math.PI)),neck:((ra-rg)*V-mb)*1000,free:((ra-rg)*V-mb-mp)*1000,tmin:alt/a/60}}
-function initCalc(){const sel_=document.getElementById('cBal');Object.keys(BALLOONS).forEach(k=>sel_.add(new Option(k,k)));sel_.value='Totex 1200 g';
+function initCalc(){const sel_=document.getElementById('cBal');Object.keys(BALLOONS).forEach(k=>sel_.add(new Option(k,k)));sel_.value='Kaymont 1200 g';
   const ids=['cMb','cDb','cCd','cMp','cGas','cMode','cVal'],g=i=>document.getElementById(i);
   const fill=()=>{const b=BALLOONS[sel_.value];if(b){g('cMb').value=b[0];g('cDb').value=b[1];}if(!g('cCd').value)g('cCd').value=0.25;calc()};
   let last=null;
