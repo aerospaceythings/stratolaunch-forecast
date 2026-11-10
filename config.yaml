@@ -1,10 +1,10 @@
 # Stratolaunch forecast – settings. Edit freely; the next daily run picks them up.
 
 site:
-  name: Northam launch site
-  lat: -31.6307
-  lon: 116.6918
-  ground_m: 154
+  name: Northam Airport
+  lat: -31.627239
+  lon: 116.686554
+  ground_m: 152
   timezone_hours: 8            # AWST
   launch_minutes_before_sunrise: 15
 
@@ -15,12 +15,12 @@ flight:                        # defaults; the website has sliders to try other 
 
 burst_mode:                    # GO only if every check passes
   max_landing_km: 150
-  marginal_landing_km: 180     # 150-180 km = marginal
+  marginal_landing_km: 180    
   landing_on_land: true
-  max_launch_wind_kmh: 15      # 10 m wind at launch
-  marginal_launch_wind_kmh: 20
-  max_gust_kmh: 30             # gust above this = marginal
-  max_rain_mmh: 0.1            # launch to landing window
+  max_launch_wind_kmh: 20      
+  marginal_launch_wind_kmh: 25
+  max_gust_kmh: 30             
+  max_rain_mmh: 0.1            
   marginal_rain_mmh: 0.5
   max_cape: 500                # J/kg; storm risk
   marginal_cape: 1000
@@ -43,6 +43,6 @@ forecast:
   max_days: 16
 
 map:
-  # optional: your own tile service, e.g. MapTiler 'https://api.maptiler.com/maps/dataviz-dark/{z}/{x}/{y}.png?key=YOUR_KEY'
+  # optional: your own tile service, e.g. MapTiler 'https://api.maptiler.com/maps/dataviz-dark/{z}/{x}/{y}.png?key=oYdzQof84TMCBJ1W39dt'
   custom_tiles_url: ''
   custom_tiles_attribution: ''
