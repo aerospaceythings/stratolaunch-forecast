@@ -32,15 +32,6 @@ def client():
     return cdsapi.Client(quiet=True, progress=False)
 
 
-def fetch(c, dataset, req, path):
-    if os.path.exists(path):
-        return path
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    c.retrieve(dataset, req, path + '.part')
-    os.replace(path + '.part', path)
-    return path
-
-
 def _open_any(path):
     """CDS returns a zip (one .nc per stream/step type) for mixed single-level requests."""
     import xarray as xr, zipfile
@@ -51,6 +42,80 @@ def _open_any(path):
         parts = [xr.open_dataset(os.path.join(d, n), engine='netcdf4') for n in sorted(os.listdir(d)) if n.endswith('.nc')]
         return xr.merge(parts, compat='override', join='outer')
     return xr.open_dataset(path, engine='netcdf4')
+
+
+def _day_path(kind, d):
+    return os.path.join(CACHE, f'{kind}_{d:%Y%m%d}.nc')
+
+
+def _split(ds, kind, keep_days):
+    """Store a downloaded block as one file per UTC day, so every day is downloaded only once."""
+    import pandas as pd
+    for d in sorted({pd.Timestamp(t).date() for t in ds['time'].values}):
+        part = ds.sel(time=slice(np.datetime64(d), np.datetime64(d + timedelta(days=1)) - np.timedelta64(1, 's')))
+        if keep_days is None or d in keep_days:
+            part.load().to_netcdf(_day_path(kind, d) + '.part', engine='netcdf4')
+            os.replace(_day_path(kind, d) + '.part', _day_path(kind, d))
+
+
+def migrate_cache():
+    """Older runs cached whole requests (pl_YYYYMM_dd-dd.nc). Split them into per-day files, no re-download."""
+    for f in glob.glob(os.path.join(CACHE, '*_??????_*.nc')):
+        kind = os.path.basename(f).split('_')[0]
+        try:
+            ds = open_nc(f)
+            _split(ds[['u', 'v', 'z']] if kind == 'pl' else ds, kind, None)
+            print(f'  cache: split {os.path.basename(f)} into days')
+        except Exception as e:
+            print(f'  cache: could not split {os.path.basename(f)} ({e})')
+        os.remove(f)
+    for d in glob.glob(os.path.join(CACHE, '*_unzipped')):
+        import shutil; shutil.rmtree(d, ignore_errors=True)
+
+
+def load_days(days, box):
+    """ERA5 for the given UTC days: from the per-day cache, downloading only the days that are missing
+    (one request per month and dataset). Days no longer needed are removed from the cache."""
+    import xarray as xr
+    os.makedirs(CACHE, exist_ok=True)
+    migrate_cache()
+    want = set(days)
+    for f in glob.glob(os.path.join(CACHE, '*_????????.nc')):            # keep the cache small
+        try:
+            if datetime.strptime(os.path.basename(f)[-11:-3], '%Y%m%d').date() not in want:
+                os.remove(f)
+        except ValueError:
+            pass
+    area = [box['north'], box['west'], box['south'], box['east']]
+    missing = {}
+    for d in days:
+        if not (os.path.exists(_day_path('pl', d)) and os.path.exists(_day_path('sfc', d))):
+            missing.setdefault((d.year, d.month), []).append(d.day)
+    print(f'  ERA5: {len(days) - sum(map(len, missing.values()))} days cached, '
+          f'{sum(map(len, missing.values()))} to download', flush=True)
+    if missing:
+        c = client()
+    for (y, m), dd in sorted(missing.items()):
+        base = {'product_type': ['reanalysis'], 'year': [str(y)], 'month': [f'{m:02d}'],
+                'day': [f'{x:02d}' for x in dd], 'time': TIMES, 'area': area,
+                'data_format': 'netcdf', 'download_format': 'unarchived'}
+        print(f'  ERA5 download {y}-{m:02d} days {dd}', flush=True)
+        tmp = os.path.join(CACHE, f'tmp_{y}{m:02d}')
+        c.retrieve('reanalysis-era5-pressure-levels', dict(base, variable=['u_component_of_wind', 'v_component_of_wind',
+                   'geopotential'], pressure_level=LEVELS), tmp + '_pl.nc')
+        c.retrieve('reanalysis-era5-single-levels', dict(base, variable=SFC_VARS,
+                   time=[f'{h:02d}:00' for h in range(24)]), tmp + '_sfc.nc')
+        keep = {date(y, m, x) for x in dd}
+        _split(open_nc(tmp + '_pl.nc')[['u', 'v', 'z']], 'pl', keep)
+        _split(open_nc(tmp + '_sfc.nc'), 'sfc', keep)
+        for f in glob.glob(tmp + '*'):
+            if os.path.isdir(f):
+                import shutil; shutil.rmtree(f, ignore_errors=True)
+            else:
+                os.remove(f)
+    PL = xr.concat([xr.open_dataset(_day_path('pl', d), engine='netcdf4') for d in days], 'time').sortby('time')
+    SF = xr.concat([xr.open_dataset(_day_path('sfc', d), engine='netcdf4') for d in days], 'time').sortby('time')
+    return PL, SF
 
 
 def open_nc(path):
@@ -167,26 +232,7 @@ def run(cfg, today=None):
             for dd in (launch.date() - timedelta(days=0), launch.date() + timedelta(days=1)):
                 need.setdefault((dd.year, dd.month), set()).add(dd.day)
     box = cfg['forecast'].get('era5_box') or cfg['forecast']['box']
-    area = [box['north'], box['west'], box['south'], box['east']]
-    c = client()
-    files = {}
-    for (y, m), days in sorted(need.items()):
-        tag = f'{y}{m:02d}_' + '-'.join(f'{x:02d}' for x in sorted(days))
-        base = {'product_type': ['reanalysis'], 'year': [str(y)], 'month': [f'{m:02d}'],
-                'day': [f'{x:02d}' for x in sorted(days)], 'time': TIMES, 'area': area,
-                'data_format': 'netcdf', 'download_format': 'unarchived'}
-        print(f'  ERA5 {y}-{m:02d} days {sorted(days)}', flush=True)
-        pl = fetch(c, 'reanalysis-era5-pressure-levels',
-                   dict(base, variable=['u_component_of_wind', 'v_component_of_wind', 'geopotential'],
-                        pressure_level=LEVELS), os.path.join(CACHE, f'pl_{tag}.nc'))
-        sf = fetch(c, 'reanalysis-era5-single-levels', dict(base, variable=SFC_VARS, time=[f'{h:02d}:00' for h in range(24)]),
-                   os.path.join(CACHE, f'sfc_{tag}.nc'))
-        files[(y, m)] = (pl, sf)
-    import xarray as xr
-    PL = xr.concat([open_nc(p)[['u', 'v', 'z']] for p, _ in files.values()], 'time').sortby('time')
-    SF = xr.concat([open_nc(f) for _, f in files.values()], 'time').sortby('time')
-    PL = PL.isel(time=np.unique(PL['time'].values, return_index=True)[1])
-    SF = SF.isel(time=np.unique(SF['time'].values, return_index=True)[1])
+    PL, SF = load_days(sorted(date(y, m, x) for (y, m), ds in need.items() for x in ds), box)
     for st, d in jobs:
         per = {}
         for y in range(d.year - NYEARS, d.year):
