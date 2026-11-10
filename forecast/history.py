@@ -62,9 +62,12 @@ def open_nc(path):
     return ds.sortby('lat').sortby('lon')
 
 
-def flight_key(cfg):
+def flight_key(cfg, s):
+    """Everything that changes a historical result: flight settings, site, limits and no-landing zones."""
+    import hashlib
     f = cfg['flight']
-    return f"{f['ascent_ms']}/{f['descent_sea_level_ms']}/{f['burst_km']}"
+    extra = json.dumps([s['lat'], s['lon'], s['ground_m'], cfg['burst_mode'], cfg.get('avoid_zones')], sort_keys=True)
+    return f"{f['ascent_ms']}/{f['descent_sea_level_ms']}/{f['burst_km']}/" + hashlib.md5(extra.encode()).hexdigest()[:8]
 
 
 def wanted(cfg, today):
@@ -72,9 +75,9 @@ def wanted(cfg, today):
     return [today + timedelta(days=k) for k in range(FIRST_DAY, LAST_DAY + 1)]
 
 
-def fly_year(cfg, d_local, pl, sf):
+def fly_year(cfg, s, d_local, pl, sf):
     """One historical launch on the same calendar date in another year."""
-    s, fl = cfg['site'], cfg['flight']
+    fl = cfg['flight']
     launch = sun.sunrise_utc(d_local, s['lat'], s['lon']) - timedelta(minutes=s['launch_minutes_before_sunrise'])
     t0 = np.datetime64(launch.replace(tzinfo=None))
     sel = pl.sel(time=slice(t0 - np.timedelta64(3, 'h'), t0 + np.timedelta64(6, 'h')))
@@ -125,27 +128,33 @@ def summarise(per_year):
 
 
 def run(cfg, today=None):
-    s = cfg['site']
+    SITES = model.sites(cfg)
+    s = SITES[0]
     today = today or (datetime.now(timezone.utc) + timedelta(hours=s['timezone_hours'])).date()
-    os.makedirs(OUT, exist_ok=True)
-    fk = flight_key(cfg)
+    for f in glob.glob(os.path.join(OUT, '*.json')):                 # old single-site layout
+        os.remove(f)
     dates = wanted(cfg, today)
     keep = {d.strftime('%m-%d') for d in dates}
-    for f in glob.glob(os.path.join(OUT, '*.json')):                 # drop dates that left the window
-        if os.path.basename(f)[:5] not in keep:
-            os.remove(f)
-    todo = []
-    for d in dates:
-        p = os.path.join(OUT, d.strftime('%m-%d') + '.json')
-        if os.path.exists(p):
-            old = json.load(open(p))
-            if old.get('flight') == fk and old.get('target_year') == d.year:
-                continue
-        todo.append(d)
-    if not todo:
+    jobs = []                                                          # (site, date)
+    for st in SITES:
+        od = os.path.join(OUT, st['key'])
+        os.makedirs(od, exist_ok=True)
+        fk = flight_key(cfg, st)
+        for f in glob.glob(os.path.join(od, '*.json')):               # drop dates that left the window
+            if os.path.basename(f)[:5] not in keep:
+                os.remove(f)
+        for d in dates:
+            p = os.path.join(od, d.strftime('%m-%d') + '.json')
+            if os.path.exists(p):
+                old = json.load(open(p))
+                if old.get('flight') == fk and old.get('target_year') == d.year:
+                    continue
+            jobs.append((st, d))
+    if not jobs:
         print('history window up to date')
         return
-    print(f'{len(todo)} new dates: {", ".join(d.strftime("%d %b") for d in todo)}')
+    todo = sorted({d for _, d in jobs})
+    print(f'{len(jobs)} site-dates to compute: {", ".join(d.strftime("%d %b") for d in todo)}')
     # which UTC days to download, grouped per (year, month)
     need = {}
     for d in todo:
@@ -157,7 +166,7 @@ def run(cfg, today=None):
             launch = sun.sunrise_utc(dl, s['lat'], s['lon'])
             for dd in (launch.date() - timedelta(days=0), launch.date() + timedelta(days=1)):
                 need.setdefault((dd.year, dd.month), set()).add(dd.day)
-    box = cfg['forecast']['box']
+    box = cfg['forecast'].get('era5_box') or cfg['forecast']['box']
     area = [box['north'], box['west'], box['south'], box['east']]
     c = client()
     files = {}
@@ -178,23 +187,23 @@ def run(cfg, today=None):
     SF = xr.concat([open_nc(f) for _, f in files.values()], 'time').sortby('time')
     PL = PL.isel(time=np.unique(PL['time'].values, return_index=True)[1])
     SF = SF.isel(time=np.unique(SF['time'].values, return_index=True)[1])
-    for d in todo:
+    for st, d in jobs:
         per = {}
         for y in range(d.year - NYEARS, d.year):
             try:
                 dl = date(y, d.month, d.day)
-                per[str(y)] = fly_year(cfg, dl, PL, SF)
+                per[str(y)] = fly_year(cfg, st, dl, PL, SF)
             except ValueError:
                 continue
             except Exception as e:
                 print(f'    {dl}: failed ({e})')
                 per[str(y)] = None
-        out = dict(date=d.strftime('%m-%d'), target_year=d.year, flight=fk, source='ERA5 reanalysis',
-                   years=per, summary=summarise(per))
-        with open(os.path.join(OUT, d.strftime('%m-%d') + '.json'), 'w') as f:
+        out = dict(date=d.strftime('%m-%d'), target_year=d.year, flight=flight_key(cfg, st), site=st['key'],
+                   source='ERA5 reanalysis', years=per, summary=summarise(per))
+        with open(os.path.join(OUT, st['key'], d.strftime('%m-%d') + '.json'), 'w') as f:
             json.dump(out, f, indent=0)
         sm = out['summary']
-        print(f'  {d:%d %b}: GO in {sm.get("go")}/{sm.get("n")} years, landing median {sm.get("landing_median_km")} km')
+        print(f'  {st["key"]} {d:%d %b}: GO in {sm.get("go")}/{sm.get("n")} years, landing median {sm.get("landing_median_km")} km')
 
 
 if __name__ == '__main__':

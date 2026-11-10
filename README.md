@@ -1,6 +1,6 @@
 # Stratolaunch forecast
 
-A daily launch forecast for the balloon launch site near Northam, WA.
+A daily launch forecast for two balloon launch sites in WA: **Northam Airport** and **Merredin Airport**. Switch between them at the top of the page.
 
 Every day at **13:20 AWST**, GitHub runs the forecast on its own servers and updates the site. For each of the next ~16 mornings it shows:
 
@@ -17,6 +17,15 @@ Every day at **13:20 AWST**, GitHub runs the forecast on its own servers and upd
 
   GOOD means at least 24 h of float, FAIR 6–24 h. Floating is forecast-only (no history cards).
 - **📈 How each day's forecast has changed:** every run is saved, so you can watch a date's prediction settle as the day gets closer.
+
+## No-landing zones
+
+The landing (burst) or cut-down landing (floating) is **NO-GO** inside any of these zones, which are drawn in red on the map:
+- **Perth metro and coastal suburbs:** from Guilderton to Mandurah/Dawesville, from the coast to the Darling Scarp.
+- **Darling Range forest:** the Perth Hills, Mundaring, Avon Valley NP, Dwellingup and Collie.
+- **Towns:** circles around the wheatbelt and regional towns, plus Bunbury and Kalgoorlie.
+
+They are rough outlines. Check them on the map and adjust `avoid_zones` in `config.yaml`.
 
 ## Days 17–30: history window
 
@@ -45,7 +54,8 @@ Edit **`config.yaml`** on GitHub (pencil icon) and commit. The site rebuilds aut
 - the climb rate, burst height and fall speed
 - the launch time relative to sunrise
 - the floating altitude, the extra heights to compare, the 300 km limit and the GOOD/FAIR hours (`float_mode`)
-- places the balloon should not land (`avoid_zones`)
+- places the balloon should not land (`avoid_zones`: polygons or circles)
+- the launch sites (`site` and `other_sites`)
 
 ## Running it by hand
 

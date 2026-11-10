@@ -29,6 +29,37 @@ def dist_km(lat0, lon0, lat, lon):
     return float(np.hypot(dx, dy)), float(np.degrees(np.arctan2(dx, dy)) % 360)
 
 
+def in_polygon(lat, lon, poly):
+    """Ray casting; poly = [[lat, lon], ...]"""
+    inside, n = False, len(poly)
+    for i in range(n):
+        (y1, x1), (y2, x2) = poly[i], poly[(i + 1) % n]
+        if (y1 > lat) != (y2 > lat) and lon < x1 + (lat - y1) * (x2 - x1) / (y2 - y1):
+            inside = not inside
+    return inside
+
+
+def zone_hit(avoid, lat, lon):
+    """Name of the first no-landing zone containing the point, else None."""
+    for z in avoid or []:
+        if 'polygon' in z:
+            if in_polygon(lat, lon, z['polygon']):
+                return z['name']
+        elif dist_km(z['lat'], z['lon'], lat, lon)[0] < z['radius_km']:
+            return z['name']
+    return None
+
+
+def sites(cfg):
+    """All launch sites: the main `site` plus `other_sites`, each with the shared launch settings."""
+    base = cfg['site']
+    shared = {k: base[k] for k in ('timezone_hours', 'launch_minutes_before_sunrise')}
+    out = [dict(shared, key=base.get('key', 'northam'), **{k: v for k, v in base.items() if k not in shared and k != 'key'})]
+    for o in cfg.get('other_sites') or []:
+        out.append(dict(shared, **o))
+    return out
+
+
 def compass(brg):
     return ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'][int((brg + 11.25) // 22.5) % 16]
 
@@ -129,9 +160,9 @@ def burst_status(r, c, avoid):
         add('landing', 'marginal', f'lands {L:.0f} km away')
     else:
         add('landing', 'go', f'{L:.0f} km {compass(r["landing_bearing"])}')
-    for z in avoid or []:
-        if dist_km(z['lat'], z['lon'], r['landing_lat'], r['landing_lon'])[0] < z['radius_km']:
-            add('zone', 'nogo', f'lands in {z["name"]}')
+    zn = zone_hit(avoid, r['landing_lat'], r['landing_lon'])
+    if zn:
+        add('zone', 'nogo', f'lands in {zn}')
     w = r['wind10_kmh']
     if w is None:
         add('wind', 'marginal', 'no surface wind data')
@@ -210,9 +241,8 @@ def cut_safe(lat0, lon0, llat, llon, fc, avoid):
         return False, L, 'ocean'
     if L > fc['max_range_km']:
         return False, L, 'range'
-    for z in avoid or []:
-        if dist_km(z['lat'], z['lon'], llat, llon)[0] < z['radius_km']:
-            return False, L, 'zone'
+    if zone_hit(avoid, llat, llon):
+        return False, L, 'zone'
     return True, L, ''
 
 
@@ -264,7 +294,7 @@ def float_flight(W, LV, t0, site, fl, fc, avoid, check_h=1.0, dt_drift=120.0):
             last = c
         else:
             why = {'ocean': 'cut later would land in the ocean', 'range': f'cut later would land beyond {fc["max_range_km"]} km',
-                   'zone': 'cut later would land in an avoid zone'}[c['why']]
+                   'zone': 'cut later would land in a no-landing zone'}[c['why']]
             break
     else:
         why = f'still safe at the {end}'

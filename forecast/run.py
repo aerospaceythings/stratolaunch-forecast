@@ -11,8 +11,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, 'data')
 
 
-def plan_days(cfg, cycle, ndays, last_fh=384):
-    s = cfg['site']
+def plan_days(s, cycle, ndays, last_fh=384):
     tz = timedelta(hours=s['timezone_hours'])
     first = (cycle + tz).date() + timedelta(days=1)
     days = []
@@ -48,18 +47,31 @@ def surface_at(sfc, hours, fh, lat, lon):
 
 
 def run(cfg, cycle=None, ndays=None):
-    s, fl = cfg['site'], cfg['flight']
+    fl = cfg['flight']
     ndays = ndays or cfg['forecast']['max_days']
     cycle = cycle or gfs.latest_cycle()
     print(f'GFS cycle {cycle:%Y-%m-%d %HZ}')
-    days = plan_days(cfg, cycle, ndays)
-    hours = sorted({h for d in days for h in d['hours']})
-    print(f'{len(days)} launch days, {len(hours)} forecast hours to fetch')
+    SITES = model.sites(cfg)
+    plans = {s['key']: plan_days(s, cycle, ndays) for s in SITES}
+    hours = sorted({h for ds in plans.values() for d in ds for h in d['hours']})
+    print(f'{len(SITES)} sites, {len(hours)} forecast hours to fetch')
     files = gfs.download(cycle, hours, cfg['forecast']['box'], os.path.join(ROOT, '.cache'))
     upper, sfc = {}, {}
     for h, (up, sf) in files.items():
         upper[h] = gfs.read_upper(up)
         sfc[h] = gfs.read_surface(sf)
+    out_sites = {}
+    for s in SITES:
+        print(f'{s["name"]}:')
+        out_sites[s['key']] = dict(site=s, days=fly_site(cfg, s, cycle, plans[s['key']], upper, sfc))
+    export_winds(upper, cycle)
+    floating(cfg, cycle, [(s, plans[s['key']], out_sites[s['key']]['days']) for s in SITES])
+    return dict(cycle=cycle.strftime('%Y-%m-%dT%HZ'), generated=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%MZ'),
+                model='NOAA GFS 0.25°', flight=fl, sites=out_sites)
+
+
+def fly_site(cfg, s, cycle, days, upper, sfc):
+    fl = cfg['flight']
     tz = timedelta(hours=s['timezone_hours'])
     results = []
     for d in days:
@@ -106,20 +118,18 @@ def run(cfg, cycle=None, ndays=None):
         r['confidence'] = 'high' if r['lead_days'] <= 3 else 'mid' if r['lead_days'] <= 7 else 'low'
         results.append(r)
         print(f'  {r["date"]} {r["launch_local"]}  {r["burst_status"]:8s} {L:5.0f} km {r["landing_dir"]:3s}  '
-              f'wind {r["wind10_kmh"]}  fog {r["fog"]}  float {r["float_status"]}')
-    export_winds(upper, cycle)
-    floating(cfg, cycle, days, results)
-    return dict(cycle=cycle.strftime('%Y-%m-%dT%HZ'), generated=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%MZ'),
-                model='NOAA GFS 0.25°', site=s, flight=fl, days=results)
+              f'wind {r["wind10_kmh"]}  fog {r["fog"]}')
+    return results
 
 
-def floating(cfg, cycle, days, results):
+def floating(cfg, cycle, per_site):
     """Free drift at the float altitude(s) from each dawn launch to the end of the forecast; when to cut down."""
-    fc, s, fl = cfg['float_mode'], cfg['site'], cfg['flight']
-    if not results or not fc.get('float_km'):
+    fc, fl = cfg['float_mode'], cfg['flight']
+    per_site = [x for x in per_site if x[2]]
+    if not per_site or not fc.get('float_km'):
         return
     fb = cfg['forecast'].get('float_box') or dict(north=-22, south=-41, west=105, east=128)
-    first = int(min(d['fh'] for d in days) // 3 * 3)
+    first = int(min(d['fh'] for _, days, _ in per_site for d in days) // 3 * 3)
     hours = list(range(first, 385, 3))
     print(f'floating: {len(hours)} forecast hours over the wide area')
     files = gfs.download_float(cycle, hours, fb, os.path.join(ROOT, '.cache'))
@@ -135,24 +145,25 @@ def floating(cfg, cycle, days, results):
     W = model.Winds(hs, la, lo, U, V, GH)
     alts = [fc['float_km']] + [a for a in fc.get('sensitivity_km', []) if a != fc['float_km']]
     LVs = {a: model.Level(W, hs, la, lo, U, V, GH, a * 1000) for a in alts}
-    tz = timedelta(hours=s['timezone_hours'])
-    for r in results:
-        out = {}
-        for a in alts:
-            f = model.float_flight(W, LVs[a], r['fh'], s, fl, dict(fc, _h=a * 1000), cfg.get('avoid_zones'))
-            if a != fc['float_km']:
-                f = dict(float_km=a, safe_h=f['safe_h'], window_end=f['window_end'], path=f['path'][::3])
-            out[a] = f
-        m = out[fc['float_km']]
-        if m['last_cut']:
-            cut_t = datetime.strptime(r['launch_utc'], '%Y-%m-%dT%H:%MZ').replace(tzinfo=timezone.utc) + timedelta(hours=m['last_cut']['h'])
-            m['last_cut']['local'] = (cut_t + tz).strftime('%a %d %b %H:%M')
-        m['others'] = [out[a] for a in alts[1:]]
-        r['drift'] = m
-        r['float_safe_h'] = m['safe_h']
-        r['float_status'] = model.float_rating(m['safe_h'], fc)
-        print(f'  {r["date"]} float {fc["float_km"]} km: safe {m["safe_h"]} h ({m["window_end"]}); '
-              + ', '.join(f'{o["float_km"]} km {o["safe_h"]} h' for o in m['others']))
+    for s, _, results in per_site:
+        tz = timedelta(hours=s['timezone_hours'])
+        for r in results:
+            out = {}
+            for a in alts:
+                f = model.float_flight(W, LVs[a], r['fh'], s, fl, dict(fc, _h=a * 1000), cfg.get('avoid_zones'))
+                if a != fc['float_km']:
+                    f = dict(float_km=a, safe_h=f['safe_h'], window_end=f['window_end'], path=f['path'][::3])
+                out[a] = f
+            m = out[fc['float_km']]
+            if m['last_cut']:
+                cut_t = datetime.strptime(r['launch_utc'], '%Y-%m-%dT%H:%MZ').replace(tzinfo=timezone.utc) + timedelta(hours=m['last_cut']['h'])
+                m['last_cut']['local'] = (cut_t + tz).strftime('%a %d %b %H:%M')
+            m['others'] = [out[a] for a in alts[1:]]
+            r['drift'] = m
+            r['float_safe_h'] = m['safe_h']
+            r['float_status'] = model.float_rating(m['safe_h'], fc)
+            print(f'  {s["key"]} {r["date"]} float {fc["float_km"]} km: safe {m["safe_h"]} h ({m["window_end"]}); '
+                  + ', '.join(f'{o["float_km"]} km {o["safe_h"]} h' for o in m['others']))
 
 
 def export_winds(upper, cycle, step=4):
@@ -176,20 +187,26 @@ def export_winds(upper, cycle, step=4):
 
 
 def save(out):
+    """data/latest.json (all sites), data/runs/<cycle>.json (no drift paths), data/history.json {site: {date: [...]}}"""
     os.makedirs(os.path.join(DATA, 'runs'), exist_ok=True)
     tag = out['cycle'].replace('-', '').replace(':', '').replace('T', '')
+    slim = {k: dict(v, days=[{a: b for a, b in r.items() if a != 'drift'} for r in v['days']]) for k, v in out['sites'].items()}
     with open(os.path.join(DATA, 'runs', f'{tag}.json'), 'w') as f:
-        json.dump(dict(out, days=[{k: v for k, v in r.items() if k != 'drift'} for r in out['days']]), f)
+        json.dump(dict(out, sites=slim), f)
     with open(os.path.join(DATA, 'latest.json'), 'w') as f:
         json.dump(out, f)
     hp = os.path.join(DATA, 'history.json')
     hist = json.load(open(hp)) if os.path.exists(hp) else {}
+    if hist and all(isinstance(v, list) for v in hist.values()):      # old single-site format
+        hist = {'northam': hist}
     keep = ('lead_days', 'burst_status', 'landing_km', 'landing_dir', 'landing_lat', 'landing_lon', 'fog',
             'wind10_kmh', 'jet_kmh', 'float_status', 'band_min_ms', 'steering_arc_deg', 'float_safe_h')
-    for r in out['days']:
-        lst = [e for e in hist.get(r['date'], []) if e['run'] != out['cycle']]
-        lst.append(dict(run=out['cycle'], **{k: r.get(k) for k in keep}))
-        hist[r['date']] = sorted(lst, key=lambda e: e['run'])
+    for key, v in out['sites'].items():
+        h = hist.setdefault(key, {})
+        for r in v['days']:
+            lst = [e for e in h.get(r['date'], []) if e['run'] != out['cycle']]
+            lst.append(dict(run=out['cycle'], **{k: r.get(k) for k in keep}))
+            h[r['date']] = sorted(lst, key=lambda e: e['run'])
     with open(hp, 'w') as f:
         json.dump(hist, f, indent=0)
     return hist

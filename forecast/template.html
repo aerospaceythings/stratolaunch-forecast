@@ -25,7 +25,10 @@ h1{font-size:clamp(28px,4vw,44px);font-weight:600;margin:28px 0 6px;letter-spaci
 .lede{color:var(--soft);font-weight:300;margin:0 0 20px;font-size:15px}
 .best{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px 20px;display:flex;gap:24px;flex-wrap:wrap;align-items:center;margin-bottom:20px}
 .best b{color:var(--lav)}
-.tabs{display:flex;gap:8px;margin:8px 0 16px}
+.tabs{display:flex;gap:8px;margin:8px 0 16px;flex-wrap:wrap}
+.tabbar{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center}
+#siteTabs .tab.on{background:var(--txt);border-color:var(--txt)}
+#siteTabs::before{content:'Launch site';color:var(--mute);font-size:13px;align-self:center;margin-right:4px}
 .tab{background:transparent;color:var(--soft);border:1px solid var(--line);border-radius:999px;padding:8px 16px;font:500 14px Poppins,Arial;cursor:pointer}
 .tab.on{background:var(--lav);color:#0b0b0c;border-color:var(--lav)}
 .strip{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(132px,1fr);gap:10px;overflow-x:auto;padding-bottom:10px;scrollbar-color:var(--line) transparent}
@@ -80,7 +83,8 @@ footer{color:var(--mute);font-size:12px;margin-top:28px;line-height:1.6}
 <h1>Launch forecast</h1>
 <p class="lede" id="lede"></p>
 <div class="best" id="best"></div>
-<div class="tabs"><button class="tab on" data-mode="burst">Burst flight</button><button class="tab" data-mode="float">Floating</button></div>
+<div class="tabbar"><div class="tabs"><button class="tab on" data-mode="burst">Burst flight</button><button class="tab" data-mode="float">Floating</button></div>
+<div class="tabs" id="siteTabs"></div></div>
 <details class="panel" id="settings"><summary>Flight settings <span class="small" id="setSummary" style="font-weight:400"></span></summary>
   <div class="sliders">
     <label>Ascent rate <b id="vAsc"></b><input type="range" id="sAsc" min="2" max="8" step="0.1"></label>
@@ -116,9 +120,16 @@ footer{color:var(--mute);font-size:12px;margin-top:28px;line-height:1.6}
 </div>
 <script>
 const D=/*__DATA__*/null;
-const FC=D.latest, H=D.history||{}, C=D.climatology||{}, CF=D.config;
-let mode='burst', sel=null, selH=null, map, layer, rings, ringMode=null, evoChart, profChart;
-const BASE=(FC&&FC.days)||[];
+const FC=D.latest, CF=D.config;
+// several launch sites: latest.sites{key:{site,days}}, history{key:{date:[...]}}, climatology{key:{MM-DD:{...}}}
+const SITES=FC?(FC.sites||{[CF.site.key||'northam']:{site:CF.site,days:FC.days||[]}}):{};
+const HALL=(()=>{const h=D.history||{};return Object.values(h).some(Array.isArray)?{[CF.site.key||'northam']:h}:h})();
+const CALL=D.climatology||{};
+let SK=(()=>{try{const k=localStorage.getItem('site');if(k&&SITES[k])return k}catch(e){}return Object.keys(SITES)[0]})();
+let H=HALL[SK]||{}, C=CALL[SK]||{};
+if(SITES[SK])CF.site={...CF.site,...SITES[SK].site};
+let mode='burst', sel=null, selH=null, map, layer, rings, zonesL, siteMk, ringMode=null, evoChart, profChart;
+let BASE=(SITES[SK]&&SITES[SK].days)||[];
 let days=BASE;
 const DEF={asc:CF.flight.ascent_ms,des:CF.flight.descent_sea_level_ms,bur:CF.flight.burst_km};
 let SET={...DEF};
@@ -181,10 +192,14 @@ function initMap(){
   const order=Object.keys(base);let cur=0,errs=0,shown=0;
   const use=i=>{Object.values(base).forEach(l=>map.removeLayer(l));errs=0;shown=0;base[order[i]].addTo(map);};
   Object.values(base).forEach(l=>{l.on('tileerror',()=>{if(map.hasLayer(l)&&!shown&&++errs>=4&&cur<order.length-1){cur++;use(cur);}});l.on('tileload',()=>{shown++;});});
-  use(0);L_.control.layers(base,null,{position:'topright'}).addTo(map);
+  use(0);
   rings=L_.layerGroup().addTo(map);
-  L_.circleMarker([s.lat,s.lon],{radius:6,color:'#0b0b0c',weight:2,fillColor:'#b8a4ff',fillOpacity:1}).addTo(map).bindTooltip('Launch site');
+  siteMk=L_.circleMarker([s.lat,s.lon],{radius:7,color:'#0b0b0c',weight:2,fillColor:'#b8a4ff',fillOpacity:1}).addTo(map).bindTooltip(s.name);
+  zonesL=L_.layerGroup().addTo(map);
+  (CF.avoid||[]).forEach(z=>{const o={color:'#c0392b',weight:1,fillColor:'#e74c3c',fillOpacity:.18,dashArray:'3 3'};
+    (z.polygon?L_.polygon(z.polygon,o):L_.circle([z.lat,z.lon],{...o,radius:z.radius_km*1000})).addTo(zonesL).bindTooltip('No landing: '+z.name);});
   layer=L_.layerGroup().addTo(map);
+  L_.control.layers(base,{'No-landing zones':zonesL},{position:'topright'}).addTo(map);
 }
 const L_=window.L;
 
@@ -213,9 +228,9 @@ function drawFloat(){
   const fc=FCF,r=sel;
   document.getElementById('mapTitle').textContent=`Free drift at ${fc.float_km} km (no station-keeping)`;
   document.getElementById('mapSub').textContent=`Dawn launch, climb at ${CF.flight.ascent_ms} m/s, then drift with the wind. Every hour the model asks: if we cut down now, where does the payload land? `+
-    `A cut is safe if it lands on land within ${fc.max_range_km} km.`;
+    `A cut is safe if it lands on land, within ${fc.max_range_km} km and outside the no-landing zones.`;
   document.getElementById('mapLeg').innerHTML=`<span><i class="sw" style="background:${BLACK}"></i>drift at ${fc.float_km} km</span><span><i class="sw" style="background:#7f8c8d"></i>drift at ${(fc.sensitivity_km||[]).join(' / ')} km</span>`+
-    `<span><span class="dot" style="background:${OKC}"></span>cut here = safe landing</span><span><span class="dot" style="background:${NOC}"></span>cut here = ocean or too far</span><span><span class="dot" style="background:#fff;border:3px solid ${BLACK}"></span>last safe cut</span>`;
+    `<span><span class="dot" style="background:${OKC}"></span>cut here = safe landing</span><span><span class="dot" style="background:${NOC}"></span>cut here = ocean, zone or too far</span><span><i class="sw" style="background:#e74c3c;opacity:.5;height:10px"></i>no-landing zone</span><span><span class="dot" style="background:#fff;border:3px solid ${BLACK}"></span>last safe cut</span>`;
   // other days: where their last safe cut would land
   days.forEach(d=>{if(!d.drift||!d.drift.last_cut||(r&&d.date===r.date))return;const c=d.drift.cuts.find(x=>x[0]===d.drift.last_cut.h);if(!c||c.length<5)return;
     const f=fmtDate(d.date);L_.circleMarker([c[3],c[4]],{radius:5,color:BLACK,weight:1,fillColor:colour[d.float_status],fillOpacity:.9}).addTo(layer)
@@ -224,7 +239,7 @@ function drawFloat(){
   const dr=r.drift;
   (dr.others||[]).forEach(o=>L_.polyline(o.path,{color:'#7f8c8d',weight:2,dashArray:'6 6',opacity:.9}).addTo(layer).bindTooltip(`${o.float_km} km: float ${hrs(o.safe_h)} before the last safe cut`));
   pathLine(dr.path,{}).bindTooltip(`${dr.float_km} km`);
-  dr.cuts.forEach(c=>{if(c.length<5)return;L_.circleMarker([c[3],c[4]],{radius:3.5,stroke:false,fillColor:c[1]?OKC:NOC,fillOpacity:.85}).addTo(layer).bindTooltip(`cut at +${c[0]} h → lands here (${c[1]?'safe':c[2]==='o'?'ocean':'too far'})`);});
+  dr.cuts.forEach(c=>{if(c.length<5)return;L_.circleMarker([c[3],c[4]],{radius:3.5,stroke:false,fillColor:c[1]?OKC:NOC,fillOpacity:.85}).addTo(layer).bindTooltip(`cut at +${c[0]} h → lands here (${c[1]?'safe':c[2]==='o'?'ocean':c[2]==='z'?'no-landing zone':'too far'})`);});
   // day ticks on the path (path[0]=launch, path[1]=at float height, path[k+2]=cut check k)
   dr.cuts.forEach((c,k)=>{const p=dr.path[k+2];if(!p)return;const day=c[0]/24;if(Math.abs(day-Math.round(day))*24<0.6&&Math.round(day)>0)
     L_.marker(p,{icon:L_.divIcon({className:'',html:`<span style="font:600 11px Poppins;color:#fff;background:${BLACK};padding:1px 5px;border-radius:4px;white-space:nowrap">+${Math.round(day)} d</span>`,iconSize:[44,16],iconAnchor:[22,-4]}),interactive:false}).addTo(layer);});
@@ -234,9 +249,9 @@ function drawFloat(){
       L_.circleMarker(lc.land,{radius:7,color:BLACK,weight:2,fillColor:OKC,fillOpacity:1}).addTo(layer).bindTooltip(`payload lands ${lc.land_km} km from the site`);}}
   // timeline
   const n=dr.cuts.length,tot=dr.cuts[n-1]?dr.cuts[n-1][0]:0;
-  const cells=dr.cuts.map(c=>`<i title="+${c[0]} h: ${c[1]?'safe cut':c[2]==='o'?'cut lands in the ocean':'cut lands too far'}" style="background:${c[1]?OKC:c.length<5?'#444':NOC}"></i>`).join('');
+  const cells=dr.cuts.map(c=>`<i title="+${c[0]} h: ${c[1]?'safe cut':c[2]==='o'?'cut lands in the ocean':c[2]==='z'?'cut lands in a no-landing zone':'cut lands too far'}" style="background:${c[1]?OKC:c.length<5?'#444':NOC}"></i>`).join('');
   const ticks=[0,.25,.5,.75,1].map(f=>`<span>+${hrs(tot*f)}</span>`).join('');
-  document.getElementById('tlBox').innerHTML=`<h2 style="font-size:15px;margin:16px 0 0">Cut-down timeline at ${dr.float_km} km</h2><p class="sub" style="margin:2px 0 0">Each slice is one hour after launch: green = cutting down then lands safely, red = ocean or beyond ${fc.max_range_km} km, dark = too far to bother checking.</p><div class="tl">${cells}</div><div class="tlx">${ticks}</div>`;
+  document.getElementById('tlBox').innerHTML=`<h2 style="font-size:15px;margin:16px 0 0">Cut-down timeline at ${dr.float_km} km</h2><p class="sub" style="margin:2px 0 0">Each slice is one hour after launch: green = cutting down then lands safely, red = ocean, no-landing zone or beyond ${fc.max_range_km} km, dark = too far to bother checking.</p><div class="tl">${cells}</div><div class="tlx">${ticks}</div>`;
 }
 
 function detailHist(){const el=document.getElementById('detail');const h=C[selH];const sm=h.summary;
@@ -323,12 +338,14 @@ function distB(lat0,lon0,lat,lon){const dy=(lat-lat0)*KMD,dx=(lon-lon0)*KMD*Math
 const DIRS=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];const compass=b=>DIRS[Math.floor((b+11.25)/22.5)%16];
 const COAST=[[-28.5,114.6],[-29,114.9],[-29.5,114.97],[-30,115],[-30.5,115.06],[-31,115.33],[-31.5,115.62],[-32,115.75],[-32.5,115.73],[-33,115.67],[-33.3,115.64],[-33.55,115.35],[-34,115.05],[-34.4,115.15]];
 function ocean(lat,lon){if(lat<COAST[COAST.length-1][0])return true;for(let i=0;i<COAST.length-1;i++){const[a,b]=[COAST[i],COAST[i+1]];if(lat<=a[0]&&lat>=b[0]){const f=(a[0]-lat)/(a[0]-b[0]);return lon<a[1]+f*(b[1]-a[1])}}return lon<COAST[0][1]}
+function inPoly(lat,lon,P){let ins=false;for(let i=0,j=P.length-1;i<P.length;j=i++){const[y1,x1]=P[i],[y2,x2]=P[j];if((y1>lat)!==(y2>lat)&&lon<x1+(lat-y1)*(x2-x1)/(y2-y1))ins=!ins}return ins}
+function zoneHit(lat,lon){for(const z of CF.avoid||[]){if(z.polygon?inPoly(lat,lon,z.polygon):distB(z.lat,z.lon,lat,lon)[0]<z.radius_km)return z.name}return null}
 function recheck(r){const c=CF.burst,L=r.landing_km;const keep=r.burst_checks.filter(x=>!['landing','zone','daylight'].includes(x.check));const add=[];
   if(r.landing_over_ocean)add.push({check:'landing',level:'nogo',text:'lands over the ocean'});
   else if(L>c.marginal_landing_km)add.push({check:'landing',level:'nogo',text:`lands ${Math.round(L)} km away`});
   else if(L>c.max_landing_km)add.push({check:'landing',level:'marginal',text:`lands ${Math.round(L)} km away`});
   else add.push({check:'landing',level:'go',text:`${Math.round(L)} km ${r.landing_dir}`});
-  (CF.avoid||[]).forEach(z=>{if(distB(z.lat,z.lon,r.landing_lat,r.landing_lon)[0]<z.radius_km)add.push({check:'zone',level:'nogo',text:'lands in '+z.name})});
+  const zn=zoneHit(r.landing_lat,r.landing_lon);if(zn)add.push({check:'zone',level:'nogo',text:'lands in '+zn});
   if(r.daylight_after_landing_h<c.min_daylight_after_landing_h)add.push({check:'daylight',level:'nogo',text:'lands too close to sunset'});
   const all=[...add,...keep],lv=all.map(x=>x.level);return[lv.includes('nogo')?'nogo':lv.includes('marginal')?'marginal':'go',all]}
 const isDef=()=>Math.abs(SET.asc-DEF.asc)<1e-6&&Math.abs(SET.des-DEF.des)<1e-6&&Math.abs(SET.bur-DEF.bur)<1e-6;
@@ -376,13 +393,22 @@ function fit(){const s=CF.site;let pts=[[s.lat,s.lon]];
   if(mode==='burst')pts=pts.concat(days.map(r=>[r.landing_lat,r.landing_lon]));
   else{const R_=FCF.max_range_km/111.32;pts.push([s.lat-R_,s.lon-R_*1.2],[s.lat+R_,s.lon+R_*1.2]);}
   map.fitBounds(L_.latLngBounds(pts).pad(mode==='burst'?0.25:0.08),{maxZoom:9});}
-document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));b.classList.add('on');mode=b.dataset.mode;
-  document.getElementById('settings').style.display=mode==='burst'?'':'none';if(mode==='float')selH=null;render();if(map)fit();});
+document.querySelectorAll('.tab[data-mode]').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab[data-mode]').forEach(x=>x.classList.remove('on'));b.classList.add('on');mode=b.dataset.mode;
+  modeUI();if(mode==='float')selH=null;render();if(map)fit();});
+function modeUI(){['settings','calc'].forEach(id=>document.getElementById(id).style.display=mode==='burst'?'':'none')}
+function siteTabs(){const el=document.getElementById('siteTabs');el.innerHTML='';const keys=Object.keys(SITES);if(keys.length<2){el.style.display='none';return}
+  keys.forEach(k=>{const b=document.createElement('button');b.className='tab'+(k===SK?' on':'');b.textContent=SITES[k].site.name.replace(/ Airport$/,'');b.onclick=()=>useSite(k);el.appendChild(b);});}
+function useSite(k){if(!SITES[k]||k===SK)return;SK=k;try{localStorage.setItem('site',k)}catch(e){}
+  CF.site={...CF.site,...SITES[k].site};BASE=SITES[k].days||[];H=HALL[k]||{};C=CALL[k]||{};days=BASE;selH=null;ringMode=null;
+  sel=days.find(r=>mode==='burst'?r.burst_status==='go':r.float_status==='good')||days[0]||null;
+  siteTabs();if(map){siteMk.setLatLng([CF.site.lat,CF.site.lon]).setTooltipContent(CF.site.name);}
+  if(map&&days.length){applySettings().then(fit)}else{header();render()}}
 header();
 document.getElementById('foot').innerHTML=`Forecast: ${FC?FC.model:'–'}; winds, fog and rain from the same model run. Trajectories are a simple ascent-burst-descent model, not a guarantee.
- Fog risk is a heuristic (model visibility, dew-point gap and calm wind). Days 17–30 are history cards: the same dawn launch flown through ERA5 reanalysis winds of the previous 5 years (updated daily). Floating: free drift at a fixed height with no station-keeping, forecast only (16 days); the cut-down check is a parachute descent from that height.
+ Fog risk is a heuristic (model visibility, dew-point gap and calm wind). No-landing zones (red on the map, editable in config.yaml) make a landing or cut-down NO-GO. Days 17–30 are history cards: the same dawn launch flown through ERA5 reanalysis winds of the previous 5 years (updated daily). Floating: free drift at a fixed height with no station-keeping, forecast only (16 days); the cut-down check is a parachute descent from that height.
  Days 8–16 come from a single long-range model run: use them to spot promising periods, not to plan a recovery.`;
 initCalc();
+siteTabs();modeUI();
 if(days.length){sel=days.find(r=>r.burst_status==='go')||days[0];initMap();initSettings();
   fit();}
 </script>

@@ -1,12 +1,20 @@
 # Stratolaunch forecast – settings. Edit freely; the next daily run picks them up.
 
-site:
+site:                          # main launch site (+ launch settings shared by all sites)
+  key: northam
   name: Northam Airport
   lat: -31.627239
   lon: 116.686554
   ground_m: 152
   timezone_hours: 8            # AWST
   launch_minutes_before_sunrise: 15
+
+other_sites:                   # extra launch sites; the website has a switch for them
+  - key: merredin
+    name: Merredin Airport     # YMDN airfield, just SE of town
+    lat: -31.5233
+    lon: 118.3200
+    ground_m: 396
 
 flight:                        # defaults; the website has sliders to try other values
   ascent_ms: 5.0
@@ -39,13 +47,35 @@ float_mode:                    # free drift (no station-keeping) after a dawn la
   min_steering_arc_deg: 150    # spread of wind directions available in the band
   min_layer_speed_ms: 2.0      # layers slower than this don't count toward the arc
 
-# Places the balloon should not land (circles). Add your own.
-avoid_zones: []
-#  - {name: "RAAF Base Pearce", lat: -31.667, lon: 116.015, radius_km: 15}
+# No-landing zones: a landing (burst) or a cut-down landing (floating) inside one is NO-GO.
+# Polygons are [lat, lon] corners; circles are lat/lon/radius_km. They are drawn on the map, so check and adjust.
+avoid_zones:
+  - name: Perth metro and coastal suburbs        # Guilderton to Mandurah/Dawesville, coast to the Darling Scarp
+    polygon: [[-31.30, 115.40], [-31.30, 115.85], [-31.50, 116.05], [-31.75, 116.12], [-32.00, 116.12],
+              [-32.20, 116.06], [-32.40, 116.00], [-32.62, 115.92], [-32.80, 115.80], [-32.80, 115.40]]
+  - name: Darling Range forest                   # Perth Hills, Mundaring, Avon Valley NP, Dwellingup, Collie
+    polygon: [[-31.40, 116.08], [-31.40, 116.20], [-31.55, 116.33], [-31.72, 116.40], [-32.00, 116.47],
+              [-32.30, 116.47], [-32.60, 116.42], [-32.90, 116.35], [-33.25, 116.30], [-33.60, 116.25],
+              [-33.60, 115.85], [-33.20, 115.92], [-32.80, 115.98], [-32.40, 116.02], [-32.10, 116.05],
+              [-31.80, 116.08]]
+  - {name: Northam town, lat: -31.654, lon: 116.674, radius_km: 3}   # airfield is 3.2 km away
+  - {name: Toodyay, lat: -31.551, lon: 116.468, radius_km: 2.5}
+  - {name: York, lat: -31.888, lon: 116.768, radius_km: 3}
+  - {name: Beverley, lat: -32.108, lon: 116.925, radius_km: 2}
+  - {name: Cunderdin, lat: -31.654, lon: 117.235, radius_km: 2}
+  - {name: Kellerberrin, lat: -31.632, lon: 117.719, radius_km: 2}
+  - {name: Merredin town, lat: -31.482, lon: 118.279, radius_km: 3}
+  - {name: Southern Cross, lat: -31.231, lon: 119.328, radius_km: 2}
+  - {name: Narrogin, lat: -32.933, lon: 117.177, radius_km: 3}
+  - {name: Wongan Hills, lat: -30.893, lon: 116.719, radius_km: 2}
+  - {name: Moora, lat: -30.640, lon: 116.006, radius_km: 2}
+  - {name: Bunbury, lat: -33.327, lon: 115.637, radius_km: 9}
+  - {name: Kalgoorlie-Boulder, lat: -30.765, lon: 121.465, radius_km: 9}
 
 forecast:
   model: gfs_0p25
-  box: {north: -28.5, south: -34.8, west: 113.5, east: 120.8}
+  box: {north: -28.5, south: -34.8, west: 113.5, east: 122.0}      # covers both sites' burst landings
+  era5_box: {north: -28.5, south: -34.8, west: 113.5, east: 120.8} # history window (kept fixed so downloads stay compatible)
   max_days: 16
   float_box: {north: -22, south: -41, west: 105, east: 128}   # wide area for the floating drift
   float_stride: 2              # use every 2nd GFS point there (0.5 deg)
