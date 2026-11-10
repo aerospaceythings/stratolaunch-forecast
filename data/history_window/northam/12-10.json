@@ -1,7 +1,8 @@
 {
 "date": "12-10",
 "target_year": 2026,
-"flight": "5.0/5.0/33.5",
+"flight": "5.0/5.0/33.5/b55f12e5",
+"site": "northam",
 "source": "ERA5 reanalysis",
 "years": {
 "2021": {
