@@ -3,3 +3,4 @@ scipy
 requests
 pyyaml
 pygrib
+global-land-mask

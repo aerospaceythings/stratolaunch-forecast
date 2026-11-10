@@ -9,7 +9,15 @@ COAST = np.array([(-28.5, 114.6), (-29.0, 114.9), (-29.5, 114.97), (-30.0, 115.0
                   (-33.3, 115.64), (-33.55, 115.35), (-34.0, 115.05), (-34.4, 115.15)])
 
 
+try:                                   # 1 km global land mask (pip install global-land-mask)
+    from global_land_mask import globe as _globe
+except ImportError:
+    _globe = None
+
+
 def over_ocean(lat, lon):
+    if _globe is not None:
+        return not bool(_globe.is_land(float(lat), float(lon)))
     if lat < COAST[-1, 0]:
         return True
     return bool(lon < np.interp(lat, COAST[::-1, 0], COAST[::-1, 1]))
@@ -155,3 +163,119 @@ def float_status(m, c):
     calm = m['band_min_ms'] <= c['max_band_min_wind_ms']
     arc = m['steering_arc_deg'] >= c['min_steering_arc_deg']
     return ('good' if calm and arc else 'fair' if calm or arc else 'poor'), dict(calm_layer=calm, steering=arc)
+
+
+# ------------------------------------------------------------------ floating (no station-keeping)
+class Level:
+    """Winds on one constant-height surface: (t, lat, lon) -> u, v. Much faster than full columns."""
+
+    def __init__(self, W, times_h, lats, lons, U, V, GH, h):
+        T, Lv, ny, nx = U.shape
+        uu, vv = np.empty((T, ny, nx), 'f4'), np.empty((T, ny, nx), 'f4')
+        g = np.moveaxis(GH, 1, -1); u = np.moveaxis(U, 1, -1); v = np.moveaxis(V, 1, -1)   # (T, ny, nx, L)
+        o = np.argsort(g, axis=-1)
+        g, u, v = [np.take_along_axis(a, o, -1) for a in (g, u, v)]
+        k = np.clip((g < h).sum(-1), 1, Lv - 1)[..., None]
+        g0, g1 = np.take_along_axis(g, k - 1, -1)[..., 0], np.take_along_axis(g, k, -1)[..., 0]
+        f = np.clip((h - g0) / (g1 - g0), 0, 1)
+        for out, a in ((uu, u), (vv, v)):
+            a0, a1 = np.take_along_axis(a, k - 1, -1)[..., 0], np.take_along_axis(a, k, -1)[..., 0]
+            out[:] = a0 + f * (a1 - a0)
+        self.f = RGI((np.asarray(times_h, float), lats, lons), np.stack([uu, vv], -1), bounds_error=False, fill_value=None)
+        self.t1, self.box = float(times_h[-1]), (lats[0], lats[-1], lons[0], lons[-1])
+
+    def at(self, t, lat, lon):
+        return self.f([[t, lat, lon]])[0]
+
+    def inside(self, lat, lon, margin=0.3):
+        a, b, c, d = self.box
+        return a + margin <= lat <= b - margin and c + margin <= lon <= d - margin
+
+
+def descend(W, t, lat, lon, h, ground_m, des_ms, dt=60.0):
+    """Cut-down from altitude h: parachute descent. -> landing lat, lon, minutes"""
+    t0 = t
+    while h > ground_m:
+        u, v = W.at(t, lat, lon, h)
+        lat += v * dt / 1000 / KM_DEG
+        lon += u * dt / 1000 / (KM_DEG * np.cos(np.radians(lat)))
+        h -= des_ms * np.sqrt(1.225 / rho(h)) * dt
+        t += dt / 3600
+    return lat, lon, (t - t0) * 60
+
+
+def cut_safe(lat0, lon0, llat, llon, fc, avoid):
+    L, _ = dist_km(lat0, lon0, llat, llon)
+    if over_ocean(llat, llon):
+        return False, L, 'ocean'
+    if L > fc['max_range_km']:
+        return False, L, 'range'
+    for z in avoid or []:
+        if dist_km(z['lat'], z['lon'], llat, llon)[0] < z['radius_km']:
+            return False, L, 'zone'
+    return True, L, ''
+
+
+def float_flight(W, LV, t0, site, fl, fc, avoid, check_h=1.0, dt_drift=120.0):
+    """Launch at t0 (hours), climb at the ascent rate to LV's height, then drift with the wind until the
+    forecast ends or the balloon leaves the forecast area. Every check_h hours: where would the payload
+    land if we cut now? Returns dict with hourly path and the cut-down timeline."""
+    h_float = fc['_h']
+    lat, lon, h, t = site['lat'], site['lon'], site['ground_m'], t0
+    path = [[round(lat, 3), round(lon, 3)]]
+    while h < h_float:                                   # ascent (full columns)
+        u, v = W.at(t, lat, lon, h)
+        lat += v * 20 / 1000 / KM_DEG
+        lon += u * 20 / 1000 / (KM_DEG * np.cos(np.radians(lat)))
+        h += fl['ascent_ms'] * 20
+        t += 20 / 3600
+    t_float = t
+    path.append([round(lat, 3), round(lon, 3)])
+    cuts, next_cut, end = [], t, 'end of forecast'
+    reach = fc['max_range_km'] + 250                     # beyond this a cut can't land in range: stop checking
+    while True:
+        if t >= next_cut:
+            if t + 1.0 >= W.t[-1]:                         # not enough forecast left to fly a cut-down
+                break
+            d, _ = dist_km(site['lat'], site['lon'], lat, lon)
+            if d < reach:
+                llat, llon, _ = descend(W, t, lat, lon, h_float, site['ground_m'], fl['descent_sea_level_ms'])
+                ok, L, why = cut_safe(site['lat'], site['lon'], llat, llon, fc, avoid)
+            else:
+                llat = llon = None; ok, L, why = False, None, 'range'
+            cuts.append(dict(h=round(t - t0, 2), lat=round(lat, 3), lon=round(lon, 3), ok=ok, why=why,
+                             land=None if llat is None else [round(llat, 3), round(llon, 3)],
+                             land_km=None if L is None else round(L)))
+            path.append([round(lat, 3), round(lon, 3)])
+            next_cut += check_h
+        if t + dt_drift / 3600 > LV.t1:
+            break
+        if not LV.inside(lat, lon):
+            end = 'leaves forecast area'
+            break
+        u, v = LV.at(t, lat, lon)
+        lat += v * dt_drift / 1000 / KM_DEG
+        lon += u * dt_drift / 1000 / (KM_DEG * np.cos(np.radians(lat)))
+        t += dt_drift / 3600
+    # first continuous safe window
+    safe_h, last, why = 0.0, None, end
+    for c in cuts:
+        if c['ok']:
+            last = c
+        else:
+            why = {'ocean': 'cut later would land in the ocean', 'range': f'cut later would land beyond {fc["max_range_km"]} km',
+                   'zone': 'cut later would land in an avoid zone'}[c['why']]
+            break
+    else:
+        why = f'still safe at the {end}'
+    if last:
+        safe_h = last['h']
+    exit_h = next((c['h'] for c in cuts if dist_km(site['lat'], site['lon'], c['lat'], c['lon'])[0] > fc['max_range_km']), None)
+    open_end = all(c['ok'] for c in cuts) and bool(cuts)
+    return dict(float_km=round(h_float / 1000, 1), open_end=open_end, ascent_h=round(t_float - t0, 2), tracked_h=round(t - t0, 1),
+                safe_h=round(safe_h, 1), window_end=why, last_cut=last, exit_300_h=exit_h, end=end,
+                path=path, cuts=[[c['h'], int(c['ok']), c['why'][:1]] + (c['land'] or []) for c in cuts])
+
+
+def float_rating(safe_h, fc):
+    return 'good' if safe_h >= fc['good_float_h'] else 'fair' if safe_h >= fc['fair_float_h'] else 'poor'

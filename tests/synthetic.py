@@ -14,7 +14,7 @@ lats = np.arange(-34.75, -28.49, 0.25)
 lons = np.arange(113.5, 120.76, 0.25)
 
 
-def _grid(h, sample):
+def _grid(h, sample, lats=lats, lons=lons):
     g = ec.codes_grib_new_from_samples(sample)
     for k, v in [('Ni', len(lons)), ('Nj', len(lats)), ('latitudeOfFirstGridPointInDegrees', lats[-1]),
                  ('longitudeOfFirstGridPointInDegrees', lons[0]), ('latitudeOfLastGridPointInDegrees', lats[0]),
@@ -64,8 +64,36 @@ def fake_download(cycle, hours, box, cache_dir, pause=0):
     return out
 
 
+FL_LATS, FL_LONS = np.arange(-41, -21.99, 0.25), np.arange(105, 128.01, 0.25)
+
+
+def fake_download_float(cycle, hours, box, cache_dir, pause=0):
+    """Wide-area upper air: stratospheric easterlies that slowly change speed and meander north-south."""
+    os.makedirs(TMP, exist_ok=True)
+    out = {}
+    for fh in hours:
+        p = os.path.join(TMP, f'f{fh:03d}_float.grb2')
+        if not os.path.exists(p):
+            with open(p, 'wb') as f:
+                for lev in gfs.FLOAT_LEVELS:
+                    z = 7200 * np.log(1013 / lev)
+                    if z < 17000:
+                        u, v = 35 * np.exp(-((z - 12000) / 4000) ** 2) + 6, 2.0
+                    else:
+                        u = -(3 + 5 * np.sin(fh / 40)) - (z - 20000) / 1500
+                        v = 4 * np.sin(fh / 17 + z / 3000)
+                    for sn, val in [('u', u), ('v', v), ('gh', z)]:
+                        g = _grid(fh, 'regular_ll_pl_grib2', FL_LATS, FL_LONS)
+                        ec.codes_set(g, 'shortName', sn); ec.codes_set(g, 'level', lev)
+                        ec.codes_set_values(g, np.full(len(FL_LATS) * len(FL_LONS), val, float))
+                        ec.codes_write(g, f); ec.codes_release(g)
+        out[fh] = p
+    return out
+
+
 if __name__ == '__main__':
     gfs.download = fake_download
+    gfs.download_float = fake_download_float
     cfg = yaml.safe_load(open(os.path.join(ROOT, 'config.yaml')))
     cyc = datetime(2026, 11, 9, 0, tzinfo=timezone.utc)
     out = run.run(cfg, cyc, int(sys.argv[1]) if len(sys.argv) > 1 else 16)
