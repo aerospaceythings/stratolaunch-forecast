@@ -27,8 +27,14 @@ burst_mode:                    # GO only if every check passes
   fog_allowed: low             # low | moderate
   min_daylight_after_landing_h: 1
 
-float_mode:                    # watch-only: days that would suit a floating platform
-  band_km: [18, 23.5]
+float_mode:                    # free drift (no station-keeping) after a dawn launch; when to cut down
+  float_km: 20                 # main float altitude
+  sensitivity_km: [18, 22]     # also flown, to show how much the answer depends on the exact height
+  max_range_km: 300            # a cut-down must land within this distance of the launch site...
+                               # ...and on land (and outside avoid_zones)
+  good_float_h: 24             # GOOD = can float at least this long before the last safe cut
+  fair_float_h: 6
+  band_km: [18, 23.5]          # band used for the wind-profile metrics below
   max_band_min_wind_ms: 3.0    # a calm layer somewhere in the band
   min_steering_arc_deg: 150    # spread of wind directions available in the band
   min_layer_speed_ms: 2.0      # layers slower than this don't count toward the arc
@@ -41,6 +47,8 @@ forecast:
   model: gfs_0p25
   box: {north: -28.5, south: -34.8, west: 113.5, east: 120.8}
   max_days: 16
+  float_box: {north: -22, south: -41, west: 105, east: 128}   # wide area for the floating drift
+  float_stride: 2              # use every 2nd GFS point there (0.5 deg)
 
 map:
   # optional: your own tile service, e.g. MapTiler 'https://api.maptiler.com/maps/dataviz-dark/{z}/{x}/{y}.png?key=oYdzQof84TMCBJ1W39dt'

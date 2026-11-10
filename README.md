@@ -9,7 +9,13 @@ Every day at **13:20 AWST**, GitHub runs the forecast on its own servers and upd
   - launch wind and gusts
   - fog risk
   - rain and storm risk
-- **🛰️ Floating flight:** whether the 18–23.5 km band has a calm layer and a wide choice of wind directions. This is what a future floating platform would need.
+- **🛰️ Floating flight:** the same dawn launch, but the balloon climbs to 20 km and drifts with the wind for up to the full 16-day forecast. There is no station-keeping. Every hour along the drift, the model asks: *if we cut down now, where would the payload land?* The site shows:
+  - how long you can float before the **last safe cut-down**, meaning the payload still lands on land within 300 km
+  - when that cut-down is (local time)
+  - an hour-by-hour green/red cut-down timeline
+  - the same at 18 and 22 km, because the real float height is never exact
+
+  GOOD means at least 24 h of float, FAIR 6–24 h. Floating is forecast-only (no history cards).
 - **📈 How each day's forecast has changed:** every run is saved, so you can watch a date's prediction settle as the day gets closer.
 
 ## Days 17–30: history window
@@ -38,7 +44,7 @@ Edit **`config.yaml`** on GitHub (pencil icon) and commit. The site rebuilds aut
 - the landing, wind, fog, rain and storm limits
 - the climb rate, burst height and fall speed
 - the launch time relative to sunrise
-- the floating-band criteria
+- the floating altitude, the extra heights to compare, the 300 km limit and the GOOD/FAIR hours (`float_mode`)
 - places the balloon should not land (`avoid_zones`)
 
 ## Running it by hand

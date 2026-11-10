@@ -7,6 +7,7 @@ import requests
 NOMADS = 'https://nomads.ncep.noaa.gov'
 FILTER = NOMADS + '/cgi-bin/filter_gfs_0p25.pl'
 PRES_LEVELS = [1000, 925, 850, 700, 600, 500, 400, 300, 250, 200, 150, 100, 70, 50, 40, 30, 20, 15, 10, 7, 5, 3]
+FLOAT_LEVELS = [1000, 925, 850, 700, 500, 400, 300, 250, 200, 150, 100, 70, 50, 40, 30, 20, 15, 10]   # floating: wide area, up to ~31 km
 SESSION = requests.Session()
 SESSION.headers['User-Agent'] = 'stratolaunch-forecast (github actions)'
 
@@ -46,9 +47,9 @@ def _params(cycle, fh, box, kind):
     p = {'dir': f'/gfs.{d}/{h}/atmos', 'file': f'gfs.t{h}z.pgrb2.0p25.f{fh:03d}',
          'subregion': '', 'toplat': box['north'], 'bottomlat': box['south'],
          'leftlon': box['west'], 'rightlon': box['east']}
-    if kind == 'upper':
+    if kind in ('upper', 'float'):
         p.update({'var_UGRD': 'on', 'var_VGRD': 'on', 'var_HGT': 'on'})
-        p.update({f'lev_{L}_mb': 'on' for L in PRES_LEVELS})
+        p.update({f'lev_{L}_mb': 'on' for L in (PRES_LEVELS if kind == 'upper' else FLOAT_LEVELS)})
     else:
         p.update({v: 'on' for v in ['var_VIS', 'var_GUST', 'var_TMP', 'var_DPT', 'var_UGRD', 'var_VGRD',
                                     'var_PRATE', 'var_CAPE', 'var_LCDC', 'var_TCDC']})
@@ -81,6 +82,24 @@ def download(cycle, hours, box, cache_dir, pause=0.7):
     return out
 
 
+def download_float(cycle, hours, box, cache_dir, pause=0.7):
+    """Upper air over a wide area for the floating drift. Returns {fh: path}."""
+    os.makedirs(cache_dir, exist_ok=True)
+    out = {}
+    for fh in sorted(set(hours)):
+        path = os.path.join(cache_dir, f'{cycle:%Y%m%d%H}_f{fh:03d}_float.grb2')
+        if not (os.path.exists(path) and os.path.getsize(path) > 0):
+            r = _get(FILTER, _params(cycle, fh, box, 'float'))
+            if r is None or not r.content.startswith(b'GRIB'):
+                print(f'  f{fh:03d}: floating download failed, skipped')
+                continue
+            with open(path, 'wb') as f:
+                f.write(r.content)
+            time.sleep(pause)
+        out[fh] = path
+    return out
+
+
 # ----------------------------------------------------------------- reading
 SFC_MAP = {  # (shortName, typeOfLevel or None) -> our name
     ('vis', None): 'vis_m', ('gust', None): 'gust_ms', ('2t', None): 't2_k', ('2d', None): 'td2_k',
@@ -88,8 +107,8 @@ SFC_MAP = {  # (shortName, typeOfLevel or None) -> our name
     ('lcc', None): 'low_cloud_pct', ('tcc', None): 'total_cloud_pct'}
 
 
-def read_upper(path):
-    """-> lats (ascending), lons, levels_hPa (descending pressure), u, v, gh  each (L, ny, nx)."""
+def read_upper(path, stride=1):
+    """-> lats (ascending), lons, levels_hPa (descending pressure), u, v, gh  each (L, ny, nx). stride: keep every n-th point."""
     import pygrib
     fields = {}
     lats = lons = None
@@ -107,6 +126,9 @@ def read_upper(path):
     if lats[0] > lats[-1]:
         lats = lats[::-1]
         stack = {n: a[:, ::-1, :] for n, a in stack.items()}
+    if stride > 1:
+        lats, lons = lats[::stride], lons[::stride]
+        stack = {n: a[:, ::stride, ::stride] for n, a in stack.items()}
     return lats, lons, np.array(levels), stack['u'], stack['v'], stack['gh']
 
 
