@@ -20,7 +20,7 @@ TIMES = ['00:00', '03:00', '18:00', '21:00']
 SFC_VARS = ['10m_u_component_of_wind', '10m_v_component_of_wind', '2m_temperature', '2m_dewpoint_temperature',
             'total_precipitation', 'convective_available_potential_energy', 'low_cloud_cover',
             'instantaneous_10m_wind_gust']
-FIRST_DAY, LAST_DAY, NYEARS = 17, 30, 5
+FIRST_DAY, LAST_DAY, NYEARS = 16, 30, 5   # 16: some GFS runs reach only 15 dawns; no gap before the history cards
 
 
 def client():

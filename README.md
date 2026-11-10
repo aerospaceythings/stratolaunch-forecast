@@ -15,7 +15,7 @@ Every day at **13:20 AWST**, GitHub runs the forecast on its own servers and upd
   - an hour-by-hour green/red cut-down timeline
   - the same at 18 and 22 km, because the real float height is never exact
 
-  GOOD means at least 24 h of float, FAIR 6–24 h. Floating is forecast-only (no history cards).
+  All three heights are flown, and the site shows the one that can float longest. GOOD means at least 24 h of float, FAIR 6–24 h. The launch weather limits from burst mode apply too: marginal weather caps the day at FAIR, and NO-GO weather makes it NO-GO. Floating is forecast-only (no history cards).
 - **📈 How each day's forecast has changed:** every run is saved, so you can watch a date's prediction settle as the day gets closer.
 
 ## No-landing zones
@@ -27,9 +27,9 @@ The landing (burst) or cut-down landing (floating) is **NO-GO** inside any of th
 
 They are rough outlines. Check them on the map and adjust `avoid_zones` in `config.yaml`.
 
-## Days 17–30: history window
+## Days 16–30: history window
 
-Past the 16-day forecast, the site shows **history cards**: the same dawn launch flown through ERA5 reanalysis weather for the same calendar date in each of the previous 5 years. Each card shows how many years it would have been GO, plus the typical and range of landing distances. Click a card for the year-by-year list.
+Past the forecast (which reaches 15 or 16 dawns, depending on the model run), the site shows **history cards**: the same dawn launch flown through ERA5 reanalysis weather for the same calendar date in each of the previous 5 years. Each card shows how many years it would have been GO, plus the typical and range of landing distances. Click a card for the year-by-year list.
 
 A separate daily job (`.github/workflows/history.yml`, 10:30 Perth time) downloads only the date that newly enters the window, so the window always reaches 30 days ahead. **It needs your Copernicus key:** in GitHub, **Settings → Secrets and variables → Actions → New repository secret**, name `CDSAPI_KEY`, value = the key from your `.cdsapirc` file (the part after `key:`). Without the secret the job skips quietly.
 
