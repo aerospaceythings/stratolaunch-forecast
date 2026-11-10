@@ -83,7 +83,7 @@ footer{color:var(--mute);font-size:12px;margin-top:28px;line-height:1.6}
 <h1>Launch forecast</h1>
 <p class="lede" id="lede"></p>
 <div class="best" id="best"></div>
-<div class="tabbar"><div class="tabs"><button class="tab on" data-mode="burst">Burst flight</button><button class="tab" data-mode="float">Floating</button></div>
+<div class="tabbar"><div class="tabs"><button class="tab on" data-mode="burst">BURST FLIGHT</button><button class="tab" data-mode="float">FLOATING FLIGHT</button></div>
 <div class="tabs" id="siteTabs"></div></div>
 <details class="panel" id="settings"><summary>Flight settings <span class="small" id="setSummary" style="font-weight:400"></span></summary>
   <div class="sliders">
@@ -113,9 +113,11 @@ footer{color:var(--mute);font-size:12px;margin-top:28px;line-height:1.6}
 <div class="panel mapwrap"><h2 id="mapTitle">Predicted landings</h2><p class="sub" id="mapSub"></p><div id="map"></div><div id="mapLeg" class="leg"></div><div id="tlBox"></div></div>
 <div class="grid">
   <div class="panel" id="detail"></div>
-  <div class="panel"><h2>Wind profile at launch</h2><p class="sub">Model winds above the launch site; shaded band = floating altitudes</p><div class="chartbox"><canvas id="prof"></canvas></div></div>
+  <div style="display:grid;gap:16px;align-content:start">
+    <div class="panel"><h2>Wind profile at launch</h2><p class="sub">Model winds above the launch site; shaded band = floating altitudes</p><div class="chartbox"><canvas id="prof"></canvas></div></div>
+    <div class="panel"><h2>How the forecast for this day has changed</h2><p class="sub" id="evoSub"></p><div class="chartbox" style="height:200px"><canvas id="evo"></canvas></div></div>
+  </div>
 </div>
-<div class="panel" style="margin-top:16px"><h2>How the forecast for this day has changed</h2><p class="sub" id="evoSub"></p><div class="chartbox"><canvas id="evo"></canvas></div></div>
 <footer id="foot"></footer>
 </div>
 <script>
@@ -164,7 +166,7 @@ function strip(){
     c.className='card'+(r.confidence==='low'?' low':'')+(sel&&sel.date===r.date?' sel':'');
     const body=mode==='burst'?
       `<div class="small">${Math.round(r.landing_km)} km ${r.landing_dir}${r.landing_over_ocean?' · ocean':''}<br>wind ${r.wind10_kmh!=null?Math.round(r.wind10_kmh):'–'} km/h<br>fog ${r.fog}<br>${r.rain_mmh>=CF.burst.max_rain_mmh?'rain':'dry'}${r.cape>=CF.burst.max_cape?' · storms':''}</div>`:
-      (r.drift?`<div class="small">float ${r.drift.open_end?'≥ ':''}${hrs(r.drift.safe_h)}<br>${r.drift.last_cut?'cut by '+r.drift.last_cut.local.slice(4):'cut on ascent'}<br>${shortWhy(r.drift)}</div>`:'<div class="small">drift appears after the next daily run</div>');
+      (r.drift?`<div class="small">float ${r.drift.open_end?'≥ ':''}${hrs(r.drift.safe_h)} at ${r.drift.float_km} km<br>${r.drift.last_cut?'cut by '+r.drift.last_cut.local.slice(4):'cut on ascent'}<br>${shortWhy(r.drift)}${r.float_weather&&r.float_weather!=='go'?`<br><b style="color:${colour[r.float_weather]}">weather ${r.float_weather==='nogo'?'NO-GO':'marginal'}</b>`:''}</div>`:'<div class="small">drift appears after the next daily run</div>');
     c.innerHTML=`<div class="dow">${f.dow} · ${r.launch_local}</div><div class="dd">${f.dd}</div><span class="badge ${s}">${label[s]}</span>${body}<div class="conf">${conf(r)} confidence · ${r.lead_days} d</div>`;
     c.onclick=()=>{sel=r;selH=null;render()};el.appendChild(c);
   });
@@ -226,10 +228,10 @@ function drawMap(){
 const OKC='#27ae60',NOC='#e74c3c';
 function drawFloat(){
   const fc=FCF,r=sel;
-  document.getElementById('mapTitle').textContent=`Free drift at ${fc.float_km} km (no station-keeping)`;
-  document.getElementById('mapSub').textContent=`Dawn launch, climb at ${CF.flight.ascent_ms} m/s, then drift with the wind. Every hour the model asks: if we cut down now, where does the payload land? `+
+  document.getElementById('mapTitle').textContent=r&&r.drift?`Free drift at ${r.drift.float_km} km, the longest float of ${[r.drift.float_km,...(r.drift.others||[]).map(o=>o.float_km)].sort((a,b)=>a-b).join(' / ')} km (no station-keeping)`:'Free drift (no station-keeping)';
+  document.getElementById('mapSub').textContent=`Dawn launch, climb at ${CF.flight.ascent_ms} m/s, then drift with the wind at a fixed height; ${[fc.float_km,...(fc.sensitivity_km||[])].sort((a,b)=>a-b).join(', ')} km are all flown and the one that can float longest is shown. Every hour the model asks: if we cut down now, where does the payload land? `+
     `A cut is safe if it lands on land, within ${fc.max_range_km} km and outside the no-landing zones.`;
-  document.getElementById('mapLeg').innerHTML=`<span><i class="sw" style="background:${BLACK}"></i>drift at ${fc.float_km} km</span><span><i class="sw" style="background:#7f8c8d"></i>drift at ${(fc.sensitivity_km||[]).join(' / ')} km</span>`+
+  document.getElementById('mapLeg').innerHTML=`<span><i class="sw" style="background:${BLACK}"></i>best altitude${r&&r.drift?' ('+r.drift.float_km+' km)':''}</span><span><i class="sw" style="background:#7f8c8d"></i>other altitudes${r&&r.drift?' ('+(r.drift.others||[]).map(o=>o.float_km).join(' / ')+' km)':''}</span>`+
     `<span><span class="dot" style="background:${OKC}"></span>cut here = safe landing</span><span><span class="dot" style="background:${NOC}"></span>cut here = ocean, zone or too far</span><span><i class="sw" style="background:#e74c3c;opacity:.5;height:10px"></i>no-landing zone</span><span><span class="dot" style="background:#fff;border:3px solid ${BLACK}"></span>last safe cut</span>`;
   // other days: where their last safe cut would land
   days.forEach(d=>{if(!d.drift||!d.drift.last_cut||(r&&d.date===r.date))return;const c=d.drift.cuts.find(x=>x[0]===d.drift.last_cut.h);if(!c||c.length<5)return;
@@ -266,14 +268,16 @@ function detailFloat(r){const el=document.getElementById('detail');const f=fmtDa
   const kv=(k,v,c='')=>`<div class="${c}"><span>${k}</span><b>${v??'–'}</b></div>`;
   if(!d){el.innerHTML=`<h2>${f.dow} ${f.dd} · launch ${r.launch_local}</h2><p class="sub">The floating drift is calculated by the daily run; it appears after the next one.</p>`;return}
   const lc=d.last_cut;
-  const sens=(d.others||[]).map(o=>`<tr><td>${o.float_km} km</td><td>${hrs(o.safe_h)}</td><td class="small">${o.window_end}</td></tr>`).join('');
-  el.innerHTML=`<h2>${f.dow} ${f.dd} · launch ${r.launch_local}</h2><p class="sub">free drift at ${d.float_km} km, no station-keeping · ${conf(r)} confidence (${r.lead_days} days ahead)</p>
-   <span class="badge ${r.float_status}">${label[r.float_status]}</span>
+  const all=[{...d,_best:1},...(d.others||[])].sort((a,b)=>a.float_km-b.float_km);
+  const sens=all.map(o=>`<tr><td>${o._best?'<b>'+o.float_km+' km</b> ← best':o.float_km+' km'}</td><td>${o._best?'<b>':''}${o.open_end?'≥ ':''}${hrs(o.safe_h)}${o._best?'</b>':''}</td><td class="small">${o.last_cut?o.last_cut.local:'–'}</td><td class="small">${o.window_end}</td></tr>`).join('');
+  const wc=(r.float_weather_checks||[]).map(c=>`<li><span class="dot" style="background:${colour[c.level]}"></span>${c.text}</li>`).join('');
+  el.innerHTML=`<h2>${f.dow} ${f.dd} · launch ${r.launch_local}</h2><p class="sub">sunrise ${r.sunrise_local} · free drift at ${d.float_km} km (best of ${all.length} heights), no station-keeping · ${conf(r)} confidence (${r.lead_days} days ahead)</p>
+   <span class="badge ${r.float_status}">${label[r.float_status]}</span>${wc?`<p class="small" style="margin:12px 0 4px">Launch weather (same limits as burst):</p><ul class="checks">${wc}</ul>`:''}
    <div class="out" style="margin-top:12px">${kv('Can float for',(d.open_end?'≥ ':'')+hrs(d.safe_h),'big')}${kv('Latest safe cut-down',lc?lc.local+' AWST':'none after reaching float')}
    ${kv('Cut-down lands',lc&&lc.land?lc.land_km+' km from site':null)}${kv('After that',d.open_end?'forecast ends (still safe)':d.window_end.replace('cut later would ','cut would '))}
    ${kv('Reaches '+d.float_km+' km after',Math.round(d.ascent_h*60)+' min')}${kv('Balloon passes '+fc.max_range_km+' km',d.exit_300_h!=null?'+'+hrs(d.exit_300_h):'not within the forecast')}</div>
-   <p class="small" style="margin:4px 0 6px">GOOD = at least ${fc.good_float_h} h before the last safe cut, FAIR = ${fc.fair_float_h}–${fc.good_float_h} h. The cut-down is a parachute descent at ${CF.flight.descent_sea_level_ms} m/s near the ground.</p>
-   <table><tr><th>If it floats at</th><th>Can float for</th><th>Why it ends</th></tr><tr><td><b>${d.float_km} km</b></td><td><b>${hrs(d.safe_h)}</b></td><td class="small">${d.window_end}</td></tr>${sens}</table>
+   <p class="small" style="margin:4px 0 6px">GOOD = at least ${fc.good_float_h} h before the last safe cut, FAIR = ${fc.fair_float_h}–${fc.good_float_h} h; marginal launch weather caps it at FAIR, NO-GO weather makes the day NO-GO. The cut-down is a parachute descent at ${CF.flight.descent_sea_level_ms} m/s near the ground.</p>
+   <table><tr><th>Float height</th><th>Can float for</th><th>Last safe cut-down</th><th>Why it ends</th></tr>${sens}</table>
    <p class="small" style="margin-top:12px">For future altitude control: calmest layer ${(r.band_min_ms*3.6).toFixed(0)} km/h at ${r.band_min_alt_km.toFixed(1)} km; ${Math.round(r.steering_arc_deg)}° of wind directions available between ${fc.band_km[0]} and ${fc.band_km[1]} km above the site at launch.</p>`;}
 function detail(){
   if(selH&&C[selH]){detailHist();return}

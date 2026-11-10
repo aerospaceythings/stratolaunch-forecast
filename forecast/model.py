@@ -144,25 +144,13 @@ def fog_risk(vis_m, t2_k, td2_k, wind10_ms, low_cloud_pct):
     return 'low'
 
 
-def burst_status(r, c, avoid):
-    """r: day result dict; c: burst_mode config. Returns status, list of (check, level, text)."""
+def weather_checks(r, c):
+    """Launch weather: surface wind, gusts, fog, rain, storms. Same limits for both modes (burst_mode section)."""
     checks = []
 
     def add(name, level, text):
         checks.append(dict(check=name, level=level, text=text))
 
-    L = r['landing_km']
-    if r['landing_over_ocean']:
-        add('landing', 'nogo', 'lands over the ocean')
-    elif L > c['marginal_landing_km']:
-        add('landing', 'nogo', f'lands {L:.0f} km away')
-    elif L > c['max_landing_km']:
-        add('landing', 'marginal', f'lands {L:.0f} km away')
-    else:
-        add('landing', 'go', f'{L:.0f} km {compass(r["landing_bearing"])}')
-    zn = zone_hit(avoid, r['landing_lat'], r['landing_lon'])
-    if zn:
-        add('zone', 'nogo', f'lands in {zn}')
     w = r['wind10_kmh']
     if w is None:
         add('wind', 'marginal', 'no surface wind data')
@@ -183,6 +171,34 @@ def burst_status(r, c, avoid):
     if cape is not None:
         add('storm', 'go' if cape < c['max_cape'] else 'marginal' if cape < c['marginal_cape'] else 'nogo',
             'no storm risk' if cape < c['max_cape'] else f'storm risk (CAPE {cape:.0f})')
+    return checks
+
+
+def worst(checks):
+    lv = [x['level'] for x in checks]
+    return 'nogo' if 'nogo' in lv else 'marginal' if 'marginal' in lv else 'go'
+
+
+def burst_status(r, c, avoid):
+    """r: day result dict; c: burst_mode config. Returns status, list of (check, level, text)."""
+    checks = []
+
+    def add(name, level, text):
+        checks.append(dict(check=name, level=level, text=text))
+
+    L = r['landing_km']
+    if r['landing_over_ocean']:
+        add('landing', 'nogo', 'lands over the ocean')
+    elif L > c['marginal_landing_km']:
+        add('landing', 'nogo', f'lands {L:.0f} km away')
+    elif L > c['max_landing_km']:
+        add('landing', 'marginal', f'lands {L:.0f} km away')
+    else:
+        add('landing', 'go', f'{L:.0f} km {compass(r["landing_bearing"])}')
+    zn = zone_hit(avoid, r['landing_lat'], r['landing_lon'])
+    if zn:
+        add('zone', 'nogo', f'lands in {zn}')
+    checks += weather_checks(r, c)
     if r['daylight_after_landing_h'] < c['min_daylight_after_landing_h']:
         add('daylight', 'nogo', 'lands too close to sunset')
     lv = [x['level'] for x in checks]
@@ -307,5 +323,11 @@ def float_flight(W, LV, t0, site, fl, fc, avoid, check_h=1.0, dt_drift=120.0):
                 path=path, cuts=[[c['h'], int(c['ok']), c['why'][:1]] + (c['land'] or []) for c in cuts])
 
 
-def float_rating(safe_h, fc):
-    return 'good' if safe_h >= fc['good_float_h'] else 'fair' if safe_h >= fc['fair_float_h'] else 'poor'
+def float_rating(safe_h, fc, weather='go'):
+    """Float time sets GOOD/FAIR/POOR; launch weather can veto (NO-GO) or cap at FAIR (marginal)."""
+    base = 'good' if safe_h >= fc['good_float_h'] else 'fair' if safe_h >= fc['fair_float_h'] else 'poor'
+    if weather == 'nogo':
+        return 'nogo'
+    if weather == 'marginal' and base == 'good':
+        return 'fair'
+    return base

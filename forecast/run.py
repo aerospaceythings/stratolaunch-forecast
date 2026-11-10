@@ -148,23 +148,26 @@ def floating(cfg, cycle, per_site):
     for s, _, results in per_site:
         tz = timedelta(hours=s['timezone_hours'])
         for r in results:
-            out = {}
-            for a in alts:
-                f = model.float_flight(W, LVs[a], r['fh'], s, fl, dict(fc, _h=a * 1000), cfg.get('avoid_zones'))
-                if a != fc['float_km']:
-                    f = dict(float_km=a, safe_h=f['safe_h'], window_end=f['window_end'], path=f['path'][::3])
-                out[a] = f
-            m = out[fc['float_km']]
-            if m['last_cut']:
-                cut_t = datetime.strptime(r['launch_utc'], '%Y-%m-%dT%H:%MZ').replace(tzinfo=timezone.utc) + timedelta(hours=m['last_cut']['h'])
-                m['last_cut']['local'] = (cut_t + tz).strftime('%a %d %b %H:%M')
-            m['others'] = [out[a] for a in alts[1:]]
+            out = {a: model.float_flight(W, LVs[a], r['fh'], s, fl, dict(fc, _h=a * 1000), cfg.get('avoid_zones'))
+                   for a in alts}
+            launch = datetime.strptime(r['launch_utc'], '%Y-%m-%dT%H:%MZ').replace(tzinfo=timezone.utc)
+            for f in out.values():
+                if f['last_cut']:
+                    f['last_cut']['local'] = (launch + timedelta(hours=f['last_cut']['h']) + tz).strftime('%a %d %b %H:%M')
+            best = max(alts, key=lambda a: (out[a]['safe_h'], a == fc['float_km']))     # longest float; ties -> main
+            m = dict(out[best], main_km=fc['float_km'])
+            m['others'] = [dict(float_km=a, safe_h=out[a]['safe_h'], window_end=out[a]['window_end'],
+                                open_end=out[a]['open_end'], path=out[a]['path'][::2], last_cut=out[a]['last_cut'])
+                           for a in sorted(alts) if a != best]
             r['drift'] = m
             r['float_safe_h'] = m['safe_h']
-            r['float_status'] = model.float_rating(m['safe_h'], fc)
-            print(f'  {s["key"]} {r["date"]} float {fc["float_km"]} km: safe {m["safe_h"]} h ({m["window_end"]}); '
-                  + ', '.join(f'{o["float_km"]} km {o["safe_h"]} h' for o in m['others']))
-
+            r['float_best_km'] = best
+            wc = model.weather_checks(r, cfg['burst_mode'])                # same launch-weather limits as burst
+            r['float_weather'] = model.worst(wc)
+            r['float_weather_checks'] = wc
+            r['float_status'] = model.float_rating(m['safe_h'], fc, r['float_weather'])
+            print(f'  {s["key"]} {r["date"]} best {best} km: safe {m["safe_h"]} h ({m["window_end"]}), '
+                  f'weather {r["float_weather"]}; ' + ', '.join(f'{a} km {out[a]["safe_h"]} h' for a in alts))
 
 def export_winds(upper, cycle, step=4):
     """Coarse (1 deg) copy of the winds for the website's what-if sliders -> site/winds.json"""
@@ -200,7 +203,7 @@ def save(out):
     if hist and all(isinstance(v, list) for v in hist.values()):      # old single-site format
         hist = {'northam': hist}
     keep = ('lead_days', 'burst_status', 'landing_km', 'landing_dir', 'landing_lat', 'landing_lon', 'fog',
-            'wind10_kmh', 'jet_kmh', 'float_status', 'band_min_ms', 'steering_arc_deg', 'float_safe_h')
+            'wind10_kmh', 'jet_kmh', 'float_status', 'band_min_ms', 'steering_arc_deg', 'float_safe_h', 'float_best_km')
     for key, v in out['sites'].items():
         h = hist.setdefault(key, {})
         for r in v['days']:
