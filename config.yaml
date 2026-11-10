@@ -51,6 +51,5 @@ forecast:
   float_stride: 2              # use every 2nd GFS point there (0.5 deg)
 
 map:
-  # optional: your own tile service, e.g. MapTiler 'https://api.maptiler.com/maps/dataviz-dark/{z}/{x}/{y}.png?key=oYdzQof84TMCBJ1W39dt'
   custom_tiles_url: ''
   custom_tiles_attribution: ''
