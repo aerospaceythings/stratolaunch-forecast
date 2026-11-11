@@ -332,9 +332,13 @@ function column(t,lat,lon){const W=WG,[T,Lv,Y,X]=W.shape;const [ti,tf]=frac(W.ho
 function interpH(z,c){const h=c.h;let n=h.length;if(z<=h[0])return[c.u[0],c.v[0]];if(z>=h[n-1])return[c.u[n-1],c.v[n-1]];
   let i=0;while(h[i+1]<z)i++;const f=(z-h[i])/(h[i+1]-h[i]);return[c.u[i]+f*(c.u[i+1]-c.u[i]),c.v[i]+f*(c.v[i+1]-c.v[i])]}
 const KMD=111.32;
+function rhoStd(h){h=Math.min(Math.max(h,-500),51000);let T,P;
+  if(h<11000){T=288.15-0.0065*h;P=101325*Math.pow(T/288.15,5.25588)}else if(h<20000){T=216.65;P=22632.06*Math.exp(-0.000157689*(h-11000))}
+  else if(h<32000){T=216.65+0.001*(h-20000);P=5474.889*Math.pow(216.65/T,34.1632)}else if(h<47000){T=228.65+0.0028*(h-32000);P=868.0187*Math.pow(228.65/T,12.2011)}
+  else{T=270.65;P=110.9063*Math.exp(-0.000126225*(h-47000))}return P/(287.053*T)}
 function flyJS(t0,asc,des,burstKm){const s=CF.site;let lat=s.lat,lon=s.lon,h=s.ground_m,t=t0,b=null,k=0;const dt=20,path=[[lat,lon]];
   while(k<20000){const [u,v]=interpH(h,column(t,lat,lon));lat+=v*dt/1000/KMD;lon+=u*dt/1000/(KMD*Math.cos(lat*Math.PI/180));t+=dt/3600;k++;
-    if(!b){h+=asc*dt;if(h>=burstKm*1000)b=[lat,lon];}else{h-=des*Math.sqrt(Math.exp(h/7200))*dt;}
+    if(!b){h+=asc*dt;if(h>=burstKm*1000)b=[lat,lon];}else{h-=des*Math.sqrt(1.225/rhoStd(h))*dt;}
     if(k%15===0)path.push([+lat.toFixed(4),+lon.toFixed(4)]);
     if(b&&h<=s.ground_m){path.push([lat,lon]);return{lat,lon,b,min:(t-t0)*60,path}}}
   return null}

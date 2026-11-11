@@ -42,13 +42,16 @@ def write(fh, path_up, path_sf, day_seed):
         for sn, val, tl, lv in [('2t', 288.0, 'heightAboveGround', 2), ('2d', 286.5 if day_seed % 4 == 0 else 280, 'heightAboveGround', 2),
                                 ('10u', 2.0 + day_seed % 5, 'heightAboveGround', 10), ('10v', 1.0, 'heightAboveGround', 10),
                                 ('vis', 20000.0 if day_seed % 4 else 800.0, 'surface', 0), ('gust', 6.0, 'surface', 0),
-                                ('cape', 50.0, 'surface', 0), ('prate', 0.0, 'surface', 0)]:
+                                ('cape', 50.0, 'surface', 0), ('prate', 0.0, 'surface', 0), ('orog', 280.0, 'surface', 0)]:
             g = _grid(fh, 'regular_ll_sfc_grib2')
             try:
                 ec.codes_set(g, 'typeOfLevel', tl); ec.codes_set(g, 'level', lv)
                 ec.codes_set(g, 'shortName', sn)
             except Exception as e:
                 print('skip', sn, e); ec.codes_release(g); continue
+            if sn == 'orog':
+                for k, v in [('discipline', 0), ('parameterCategory', 3), ('parameterNumber', 5), ('typeOfFirstFixedSurface', 1)]:
+                    ec.codes_set(g, k, v)
             ec.codes_set_values(g, np.full(len(lats) * len(lons), val, float))
             ec.codes_write(g, f); ec.codes_release(g)
 
