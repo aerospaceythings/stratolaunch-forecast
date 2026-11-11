@@ -2,7 +2,9 @@ name: Daily launch forecast
 
 on:
   schedule:
-    - cron: '20 5 * * *'      # 13:20 AWST, after the 00Z GFS run is complete
+    # every GFS run (00/06/12/18Z), ~5 h after it starts, once all 16 days are published:
+    # 13:20, 19:20, 01:20 and 07:20 AWST. A run with no new GFS data stops after a minute.
+    - cron: '20 5,11,17,23 * * *'
   workflow_dispatch:           # "Run workflow" button in the Actions tab
   push:
     paths: ['config.yaml', 'forecast/**', '.github/workflows/**']
@@ -30,7 +32,7 @@ jobs:
           cache: pip
       - run: pip install -r requirements.txt
       - name: Run forecast
-        run: python -m forecast.run
+        run: python -m forecast.run ${{ github.event_name == 'schedule' && '--new-cycle-only' || '' }}
       - name: Save history to the repo
         run: |
           git config user.name "forecast-bot"

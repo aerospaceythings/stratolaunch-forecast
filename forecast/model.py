@@ -84,12 +84,42 @@ class Winds:
 
 
 def rho(h):
-    return 1.225 * np.exp(-h / 7200.0)
+    """Air density, US Standard Atmosphere 1976 (0-51 km), kg/m3."""
+    h = min(max(float(h), -500.0), 51000.0)
+    if h < 11000:
+        T = 288.15 - 0.0065 * h; P = 101325.0 * (T / 288.15) ** 5.25588
+    elif h < 20000:
+        T = 216.65; P = 22632.06 * np.exp(-0.000157689 * (h - 11000))
+    elif h < 32000:
+        T = 216.65 + 0.001 * (h - 20000); P = 5474.889 * (216.65 / T) ** 34.1632
+    elif h < 47000:
+        T = 228.65 + 0.0028 * (h - 32000); P = 868.0187 * (228.65 / T) ** 12.2011
+    else:
+        T = 270.65; P = 110.9063 * np.exp(-0.000126225 * (h - 47000))
+    return P / (287.053 * T)
 
 
-def fly(W, t0, lat0, lon0, ground_m, fl, dt=20.0):
-    """Ascent -> burst -> descent. Returns landing (lat, lon), burst (lat, lon), duration min, path [[lat,lon],...]"""
+class Terrain:
+    """Ground height (m) from the model orography; outside the grid, the fallback height."""
+
+    def __init__(self, lats, lons, hgt, fallback):
+        self.f = RGI((lats, lons), hgt, bounds_error=False, fill_value=np.nan)
+        self.fallback = fallback
+
+    def __call__(self, lat, lon):
+        v = float(self.f([[lat, lon]])[0])
+        return v if np.isfinite(v) else self.fallback
+
+
+def _ground(g, lat, lon):
+    return g(lat, lon) if callable(g) else g
+
+
+def fly(W, t0, lat0, lon0, ground_m, fl, dt=20.0, terrain=None):
+    """Ascent -> burst -> descent to the terrain height under the balloon.
+    Returns landing (lat, lon), burst (lat, lon), duration min, path [[lat,lon],...]"""
     lat, lon, h, t = lat0, lon0, ground_m, t0
+    terrain = terrain if terrain is not None else ground_m
     path, burst, k = [[lat, lon]], None, 0
     while True:
         u, v = W.at(t, lat, lon, h)
@@ -105,7 +135,7 @@ def fly(W, t0, lat0, lon0, ground_m, fl, dt=20.0):
             h -= fl['descent_sea_level_ms'] * np.sqrt(1.225 / rho(h)) * dt
         if k % 15 == 0:
             path.append([round(lat, 4), round(lon, 4)])
-        if burst is not None and h <= ground_m:
+        if burst is not None and h <= _ground(terrain, lat, lon):
             path.append([round(lat, 4), round(lon, 4)])
             return (lat, lon), burst, (t - t0) * 60, path
 
@@ -240,9 +270,10 @@ class Level:
 
 
 def descend(W, t, lat, lon, h, ground_m, des_ms, dt=60.0):
+    """ground_m: a height or a Terrain"""
     """Cut-down from altitude h: parachute descent. -> landing lat, lon, minutes"""
     t0 = t
-    while h > ground_m:
+    while h > _ground(ground_m, lat, lon):
         u, v = W.at(t, lat, lon, h)
         lat += v * dt / 1000 / KM_DEG
         lon += u * dt / 1000 / (KM_DEG * np.cos(np.radians(lat)))
@@ -262,7 +293,7 @@ def cut_safe(lat0, lon0, llat, llon, fc, avoid):
     return True, L, ''
 
 
-def float_flight(W, LV, t0, site, fl, fc, avoid, check_h=1.0, dt_drift=120.0):
+def float_flight(W, LV, t0, site, fl, fc, avoid, check_h=1.0, dt_drift=120.0, terrain=None):
     """Launch at t0 (hours), climb at the ascent rate to LV's height, then drift with the wind until the
     forecast ends or the balloon leaves the forecast area. Every check_h hours: where would the payload
     land if we cut now? Returns dict with hourly path and the cut-down timeline."""
@@ -285,7 +316,7 @@ def float_flight(W, LV, t0, site, fl, fc, avoid, check_h=1.0, dt_drift=120.0):
                 break
             d, _ = dist_km(site['lat'], site['lon'], lat, lon)
             if d < reach:
-                llat, llon, _ = descend(W, t, lat, lon, h_float, site['ground_m'], fl['descent_sea_level_ms'])
+                llat, llon, _ = descend(W, t, lat, lon, h_float, terrain or site['ground_m'], fl['descent_sea_level_ms'])
                 ok, L, why = cut_safe(site['lat'], site['lon'], llat, llon, fc, avoid)
             else:
                 llat = llon = None; ok, L, why = False, None, 'range'

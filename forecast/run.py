@@ -60,17 +60,20 @@ def run(cfg, cycle=None, ndays=None):
     for h, (up, sf) in files.items():
         upper[h] = gfs.read_upper(up)
         sfc[h] = gfs.read_surface(sf)
+    terr = next(((la, lo, f['terrain_m']) for (la, lo, f) in sfc.values() if f and 'terrain_m' in f), None)
+    print('terrain: ' + ('model orography' if terr else 'not available, landing at launch-site height'))
     out_sites = {}
     for s in SITES:
         print(f'{s["name"]}:')
-        out_sites[s['key']] = dict(site=s, days=fly_site(cfg, s, cycle, plans[s['key']], upper, sfc))
+        T = model.Terrain(terr[0], terr[1], terr[2], s['ground_m']) if terr else None
+        out_sites[s['key']] = dict(site=s, days=fly_site(cfg, s, cycle, plans[s['key']], upper, sfc, T))
     export_winds(upper, cycle)
-    floating(cfg, cycle, [(s, plans[s['key']], out_sites[s['key']]['days']) for s in SITES])
+    floating(cfg, cycle, [(s, plans[s['key']], out_sites[s['key']]['days']) for s in SITES], terr)
     return dict(cycle=cycle.strftime('%Y-%m-%dT%HZ'), generated=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%MZ'),
                 model='NOAA GFS 0.25°', flight=fl, sites=out_sites)
 
 
-def fly_site(cfg, s, cycle, days, upper, sfc):
+def fly_site(cfg, s, cycle, days, upper, sfc, terrain=None):
     fl = cfg['flight']
     tz = timedelta(hours=s['timezone_hours'])
     results = []
@@ -83,7 +86,7 @@ def fly_site(cfg, s, cycle, days, upper, sfc):
         common = sorted(set.intersection(*[set(upper[h][2].tolist()) for h in hs]), reverse=True)
         idx = {h: [upper[h][2].tolist().index(lv) for lv in common] for h in hs}
         W = model.Winds(hs, la, lo, *[np.stack([upper[h][k][idx[h]] for h in hs]) for k in (3, 4, 5)])
-        (llat, llon), (blat, blon), dur, path = model.fly(W, d['fh'], s['lat'], s['lon'], s['ground_m'], fl)
+        (llat, llon), (blat, blon), dur, path = model.fly(W, d['fh'], s['lat'], s['lon'], s['ground_m'], fl, terrain=terrain)
         L, brg = model.dist_km(s['lat'], s['lon'], llat, llon)
         B, _ = model.dist_km(s['lat'], s['lon'], blat, blon)
         H, u, v = W.column(d['fh'], s['lat'], s['lon'])
@@ -122,7 +125,7 @@ def fly_site(cfg, s, cycle, days, upper, sfc):
     return results
 
 
-def floating(cfg, cycle, per_site):
+def floating(cfg, cycle, per_site, terr=None):
     """Free drift at the float altitude(s) from each dawn launch to the end of the forecast; when to cut down."""
     fc, fl = cfg['float_mode'], cfg['flight']
     per_site = [x for x in per_site if x[2]]
@@ -147,8 +150,9 @@ def floating(cfg, cycle, per_site):
     LVs = {a: model.Level(W, hs, la, lo, U, V, GH, a * 1000) for a in alts}
     for s, _, results in per_site:
         tz = timedelta(hours=s['timezone_hours'])
+        T = model.Terrain(terr[0], terr[1], terr[2], s['ground_m']) if terr else None
         for r in results:
-            out = {a: model.float_flight(W, LVs[a], r['fh'], s, fl, dict(fc, _h=a * 1000), cfg.get('avoid_zones'))
+            out = {a: model.float_flight(W, LVs[a], r['fh'], s, fl, dict(fc, _h=a * 1000), cfg.get('avoid_zones'), terrain=T)
                    for a in alts}
             launch = datetime.strptime(r['launch_utc'], '%Y-%m-%dT%H:%MZ').replace(tzinfo=timezone.utc)
             for f in out.values():
@@ -220,10 +224,18 @@ def main():
     ap.add_argument('--cycle', help='YYYYMMDDHH (default: latest complete GFS run)')
     ap.add_argument('--days', type=int)
     ap.add_argument('--site-only', action='store_true', help='rebuild the website from saved data')
+    ap.add_argument('--new-cycle-only', action='store_true', help='skip if the newest GFS run is already done')
     a = ap.parse_args()
     cfg = yaml.safe_load(open(os.path.join(ROOT, 'config.yaml')))
     if not a.site_only:
         cyc = datetime.strptime(a.cycle, '%Y%m%d%H').replace(tzinfo=timezone.utc) if a.cycle else None
+        if a.new_cycle_only and cyc is None:
+            cyc = gfs.latest_cycle()
+            lp = os.path.join(DATA, 'latest.json')
+            if os.path.exists(lp) and json.load(open(lp)).get('cycle') == cyc.strftime('%Y-%m-%dT%HZ'):
+                print(f'GFS {cyc:%Y-%m-%d %HZ} already processed - nothing new, keeping the current forecast')
+                site.build(ROOT, cfg)
+                return
         save(run(cfg, cyc, a.days))
     site.build(ROOT, cfg)
 

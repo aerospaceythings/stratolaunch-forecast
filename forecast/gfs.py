@@ -6,8 +6,9 @@ import requests
 
 NOMADS = 'https://nomads.ncep.noaa.gov'
 FILTER = NOMADS + '/cgi-bin/filter_gfs_0p25.pl'
-PRES_LEVELS = [1000, 925, 850, 700, 600, 500, 400, 300, 250, 200, 150, 100, 70, 50, 40, 30, 20, 15, 10, 7, 5, 3]
-FLOAT_LEVELS = [1000, 925, 850, 700, 500, 400, 300, 250, 200, 150, 100, 70, 50, 40, 30, 20, 15, 10]   # floating: wide area, up to ~31 km
+PRES_LEVELS = [1000, 975, 950, 925, 900, 850, 800, 750, 700, 650, 600, 550, 500, 450, 400, 350, 300, 250, 200, 150,
+               100, 70, 50, 40, 30, 20, 15, 10, 7, 5, 3]   # every GFS level from the ground to ~40 km
+FLOAT_LEVELS = [1000, 950, 900, 850, 800, 700, 600, 500, 400, 300, 250, 200, 150, 100, 70, 50, 40, 30, 20, 15, 10]   # floating: wide area, up to ~31 km
 SESSION = requests.Session()
 SESSION.headers['User-Agent'] = 'stratolaunch-forecast (github actions)'
 
@@ -51,7 +52,7 @@ def _params(cycle, fh, box, kind):
         p.update({'var_UGRD': 'on', 'var_VGRD': 'on', 'var_HGT': 'on'})
         p.update({f'lev_{L}_mb': 'on' for L in (PRES_LEVELS if kind == 'upper' else FLOAT_LEVELS)})
     else:
-        p.update({v: 'on' for v in ['var_VIS', 'var_GUST', 'var_TMP', 'var_DPT', 'var_UGRD', 'var_VGRD',
+        p.update({v: 'on' for v in ['var_HGT', 'var_VIS', 'var_GUST', 'var_TMP', 'var_DPT', 'var_UGRD', 'var_VGRD',
                                     'var_PRATE', 'var_CAPE', 'var_LCDC', 'var_TCDC']})
         p.update({v: 'on' for v in ['lev_surface', 'lev_2_m_above_ground', 'lev_10_m_above_ground',
                                     'lev_low_cloud_layer', 'lev_entire_atmosphere']})
@@ -104,7 +105,8 @@ def download_float(cycle, hours, box, cache_dir, pause=0.7):
 SFC_MAP = {  # (shortName, typeOfLevel or None) -> our name
     ('vis', None): 'vis_m', ('gust', None): 'gust_ms', ('2t', None): 't2_k', ('2d', None): 'td2_k',
     ('10u', None): 'u10', ('10v', None): 'v10', ('prate', None): 'prate', ('cape', None): 'cape',
-    ('lcc', None): 'low_cloud_pct', ('tcc', None): 'total_cloud_pct'}
+    ('lcc', None): 'low_cloud_pct', ('tcc', None): 'total_cloud_pct',
+    ('orog', None): 'terrain_m', ('gh', 'surface'): 'terrain_m', ('h', 'surface'): 'terrain_m'}
 
 
 def read_upper(path, stride=1):

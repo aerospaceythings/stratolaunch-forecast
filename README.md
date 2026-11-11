@@ -2,7 +2,7 @@
 
 A daily launch forecast for two balloon launch sites in WA: **Northam Airport** and **Merredin Airport**. Switch between them at the top of the page.
 
-Every day at **13:20 AWST**, GitHub runs the forecast on its own servers and updates the site. For each of the next ~16 mornings it shows:
+After every GFS model run (4× a day: about **01:20, 07:20, 13:20 and 19:20 AWST**), GitHub runs the forecast on its own servers and updates the site. If NOAA hasn't finished publishing a new run yet, the job stops after a minute and keeps the current forecast. For each of the next ~16 mornings it shows:
 
 - **🎈 Burst flight:** a **GO / MARGINAL / NO-GO** rating for a launch 15 minutes before sunrise, with:
   - predicted landing spot and flight path
@@ -71,8 +71,8 @@ Edit **`config.yaml`** on GitHub (pencil icon) and commit. The site rebuilds aut
 
 ## Where the numbers come from
 
-- **Forecast:** NOAA GFS 0.25°, the newest complete run, downloaded as a small area around the site from NOMADS. Pressure levels from 1000 to 3 hPa (surface to ~40 km), plus the surface fields (visibility, 2 m temperature and dew point, 10 m wind, gusts, precipitation rate, CAPE, cloud).
-- **Trajectory:** ascent at a constant rate to burst height, then a parachute descent whose fall speed scales with 1/√(air density). Settings come from the 13 Oct 2026 flight.
+- **Forecast:** NOAA GFS 0.25°, the newest complete run, downloaded as a small area around the site from NOMADS. All 31 GFS pressure levels from 1000 to 3 hPa (surface to ~40 km), plus the surface fields (model terrain height, visibility, 2 m temperature and dew point, 10 m wind, gusts, precipitation rate, CAPE, cloud).
+- **Trajectory:** ascent at a constant rate to burst height, then a parachute descent whose fall speed scales with 1/√(air density), using the US Standard Atmosphere 1976 (the same approach as the CUSF/SondeHub predictor). The flight ends at the model terrain height under the balloon, not at the launch-site height. Settings come from the 13 Oct 2026 flight.
 - **Fog risk:** a rule of thumb. It's "high" when model visibility is under 1 km, or the air is saturated (dew-point gap ≤ 1 °C) and calm. It's "moderate" when visibility is under 5 km or the air is nearly saturated with light wind.
 - **Landing over the ocean:** checked against a simplified WA coastline.
 
