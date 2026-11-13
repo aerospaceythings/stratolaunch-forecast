@@ -593,6 +593,23 @@
 "steering_arc_deg": 161.1,
 "float_safe_h": 25.1,
 "float_best_km": 20
+},
+{
+"run": "2026-11-13T06Z",
+"lead_days": 0.6,
+"burst_status": "nogo",
+"landing_km": 60.0,
+"landing_dir": "E",
+"landing_lat": -31.663,
+"landing_lon": 117.3185,
+"fog": "low",
+"wind10_kmh": 23.0,
+"jet_kmh": 116.6,
+"float_status": "nogo",
+"band_min_ms": 2.14,
+"steering_arc_deg": 161.82,
+"float_safe_h": 19.1,
+"float_best_km": 20
 }
 ],
 "2026-11-15": [
@@ -813,6 +830,23 @@
 "band_min_ms": 2.04,
 "steering_arc_deg": 149.03,
 "float_safe_h": 15.0,
+"float_best_km": 18
+},
+{
+"run": "2026-11-13T06Z",
+"lead_days": 1.6,
+"burst_status": "marginal",
+"landing_km": 27.4,
+"landing_dir": "ENE",
+"landing_lat": -31.5302,
+"landing_lon": 116.9523,
+"fog": "low",
+"wind10_kmh": 24.8,
+"jet_kmh": 125.53,
+"float_status": "fair",
+"band_min_ms": 1.4,
+"steering_arc_deg": 164.23,
+"float_safe_h": 13.0,
 "float_best_km": 18
 }
 ],
@@ -1035,6 +1069,23 @@
 "steering_arc_deg": 163.53,
 "float_safe_h": 17.0,
 "float_best_km": 18
+},
+{
+"run": "2026-11-13T06Z",
+"lead_days": 2.6,
+"burst_status": "marginal",
+"landing_km": 20.5,
+"landing_dir": "ESE",
+"landing_lat": -31.7295,
+"landing_lon": 116.8666,
+"fog": "low",
+"wind10_kmh": 24.6,
+"jet_kmh": 115.18,
+"float_status": "fair",
+"band_min_ms": 1.67,
+"steering_arc_deg": 172.29,
+"float_safe_h": 16.0,
+"float_best_km": 18
 }
 ],
 "2026-11-17": [
@@ -1255,6 +1306,23 @@
 "band_min_ms": 3.14,
 "steering_arc_deg": 131.28,
 "float_safe_h": 42.0,
+"float_best_km": 18
+},
+{
+"run": "2026-11-13T06Z",
+"lead_days": 3.6,
+"burst_status": "nogo",
+"landing_km": 48.4,
+"landing_dir": "W",
+"landing_lat": -31.5427,
+"landing_lon": 116.1853,
+"fog": "low",
+"wind10_kmh": 22.1,
+"jet_kmh": 37.0,
+"float_status": "fair",
+"band_min_ms": 2.46,
+"steering_arc_deg": 138.31,
+"float_safe_h": 34.0,
 "float_best_km": 18
 }
 ],
@@ -1477,6 +1545,23 @@
 "steering_arc_deg": 142.64,
 "float_safe_h": 23.0,
 "float_best_km": 18
+},
+{
+"run": "2026-11-13T06Z",
+"lead_days": 4.6,
+"burst_status": "marginal",
+"landing_km": 63.2,
+"landing_dir": "N",
+"landing_lat": -31.0667,
+"landing_lon": 116.5827,
+"fog": "low",
+"wind10_kmh": 14.1,
+"jet_kmh": 103.23,
+"float_status": "fair",
+"band_min_ms": 3.47,
+"steering_arc_deg": 138.4,
+"float_safe_h": 21.0,
+"float_best_km": 18
 }
 ],
 "2026-11-19": [
@@ -1698,6 +1783,23 @@
 "steering_arc_deg": 31.37,
 "float_safe_h": 15.1,
 "float_best_km": 20
+},
+{
+"run": "2026-11-13T06Z",
+"lead_days": 5.6,
+"burst_status": "go",
+"landing_km": 51.3,
+"landing_dir": "ESE",
+"landing_lat": -31.8313,
+"landing_lon": 117.1717,
+"fog": "low",
+"wind10_kmh": 3.9,
+"jet_kmh": 115.94,
+"float_status": "fair",
+"band_min_ms": 0.45,
+"steering_arc_deg": 157.6,
+"float_safe_h": 14.1,
+"float_best_km": 20
 }
 ],
 "2026-11-20": [
@@ -1917,6 +2019,23 @@
 "float_status": "nogo",
 "band_min_ms": 3.12,
 "steering_arc_deg": 139.47,
+"float_safe_h": 13.1,
+"float_best_km": 20
+},
+{
+"run": "2026-11-13T06Z",
+"lead_days": 6.6,
+"burst_status": "go",
+"landing_km": 132.1,
+"landing_dir": "ESE",
+"landing_lat": -31.9182,
+"landing_lon": 118.0379,
+"fog": "low",
+"wind10_kmh": 12.3,
+"jet_kmh": 178.97,
+"float_status": "fair",
+"band_min_ms": 3.44,
+"steering_arc_deg": 148.69,
 "float_safe_h": 13.1,
 "float_best_km": 20
 }
@@ -2140,6 +2259,23 @@
 "steering_arc_deg": 158.31,
 "float_safe_h": 12.2,
 "float_best_km": 22
+},
+{
+"run": "2026-11-13T06Z",
+"lead_days": 7.6,
+"burst_status": "nogo",
+"landing_km": 184.9,
+"landing_dir": "E",
+"landing_lat": -31.8263,
+"landing_lon": 118.6228,
+"fog": "moderate",
+"wind10_kmh": 8.2,
+"jet_kmh": 297.29,
+"float_status": "fair",
+"band_min_ms": 0.59,
+"steering_arc_deg": 168.41,
+"float_safe_h": 14.2,
+"float_best_km": 22
 }
 ],
 "2026-11-22": [
@@ -2360,6 +2496,23 @@
 "band_min_ms": 0.89,
 "steering_arc_deg": 174.2,
 "float_safe_h": 20.1,
+"float_best_km": 20
+},
+{
+"run": "2026-11-13T06Z",
+"lead_days": 8.6,
+"burst_status": "go",
+"landing_km": 145.4,
+"landing_dir": "E",
+"landing_lat": -31.3998,
+"landing_lon": 118.1976,
+"fog": "low",
+"wind10_kmh": 7.5,
+"jet_kmh": 278.5,
+"float_status": "good",
+"band_min_ms": 3.2,
+"steering_arc_deg": 163.93,
+"float_safe_h": 25.1,
 "float_best_km": 20
 }
 ],
@@ -2582,6 +2735,23 @@
 "steering_arc_deg": 217.31,
 "float_safe_h": 85.1,
 "float_best_km": 20
+},
+{
+"run": "2026-11-13T06Z",
+"lead_days": 9.6,
+"burst_status": "go",
+"landing_km": 84.5,
+"landing_dir": "ENE",
+"landing_lat": -31.2711,
+"landing_lon": 117.4737,
+"fog": "low",
+"wind10_kmh": 10.8,
+"jet_kmh": 157.46,
+"float_status": "good",
+"band_min_ms": 1.19,
+"steering_arc_deg": 159.59,
+"float_safe_h": 37.1,
+"float_best_km": 20
 }
 ],
 "2026-11-24": [
@@ -2802,6 +2972,23 @@
 "band_min_ms": 1.28,
 "steering_arc_deg": 199.51,
 "float_safe_h": 64.1,
+"float_best_km": 20
+},
+{
+"run": "2026-11-13T06Z",
+"lead_days": 10.6,
+"burst_status": "marginal",
+"landing_km": 18.2,
+"landing_dir": "ENE",
+"landing_lat": -31.5637,
+"landing_lon": 116.8638,
+"fog": "low",
+"wind10_kmh": 15.6,
+"jet_kmh": 105.3,
+"float_status": "fair",
+"band_min_ms": 0.44,
+"steering_arc_deg": 185.93,
+"float_safe_h": 10.1,
 "float_best_km": 20
 }
 ],
@@ -3024,6 +3211,23 @@
 "steering_arc_deg": 180.5,
 "float_safe_h": 18.1,
 "float_best_km": 20
+},
+{
+"run": "2026-11-13T06Z",
+"lead_days": 11.6,
+"burst_status": "go",
+"landing_km": 9.4,
+"landing_dir": "NNE",
+"landing_lat": -31.5568,
+"landing_lon": 116.7405,
+"fog": "low",
+"wind10_kmh": 12.0,
+"jet_kmh": 88.78,
+"float_status": "fair",
+"band_min_ms": 1.43,
+"steering_arc_deg": 184.19,
+"float_safe_h": 14.1,
+"float_best_km": 20
 }
 ],
 "2026-11-26": [
@@ -3213,6 +3417,23 @@
 "steering_arc_deg": 175.74,
 "float_safe_h": 10.1,
 "float_best_km": 20
+},
+{
+"run": "2026-11-13T06Z",
+"lead_days": 12.6,
+"burst_status": "marginal",
+"landing_km": 49.5,
+"landing_dir": "SE",
+"landing_lat": -31.983,
+"landing_lon": 116.9992,
+"fog": "low",
+"wind10_kmh": 18.2,
+"jet_kmh": 137.12,
+"float_status": "fair",
+"band_min_ms": 0.78,
+"steering_arc_deg": 165.02,
+"float_safe_h": 9.1,
+"float_best_km": 20
 }
 ],
 "2026-11-27": [
@@ -3368,6 +3589,23 @@
 "steering_arc_deg": 161.96,
 "float_safe_h": 18.0,
 "float_best_km": 18
+},
+{
+"run": "2026-11-13T06Z",
+"lead_days": 13.6,
+"burst_status": "marginal",
+"landing_km": 53.4,
+"landing_dir": "SSE",
+"landing_lat": -32.0862,
+"landing_lon": 116.8496,
+"fog": "low",
+"wind10_kmh": 24.1,
+"jet_kmh": 122.67,
+"float_status": "fair",
+"band_min_ms": 1.05,
+"steering_arc_deg": 152.01,
+"float_safe_h": 14.0,
+"float_best_km": 18
 }
 ],
 "2026-11-28": [
@@ -3455,6 +3693,23 @@
 "steering_arc_deg": 195.98,
 "float_safe_h": 12.0,
 "float_best_km": 18
+},
+{
+"run": "2026-11-13T06Z",
+"lead_days": 14.6,
+"burst_status": "nogo",
+"landing_km": 77.7,
+"landing_dir": "SE",
+"landing_lat": -32.0822,
+"landing_lon": 117.3082,
+"fog": "low",
+"wind10_kmh": 30.3,
+"jet_kmh": 193.65,
+"float_status": "nogo",
+"band_min_ms": 1.58,
+"steering_arc_deg": 161.23,
+"float_safe_h": 10.1,
+"float_best_km": 20
 }
 ],
 "2026-11-29": [
@@ -3474,6 +3729,23 @@
 "steering_arc_deg": 152.6,
 "float_safe_h": 2.2,
 "float_best_km": 22
+},
+{
+"run": "2026-11-13T06Z",
+"lead_days": 15.6,
+"burst_status": "go",
+"landing_km": 117.0,
+"landing_dir": "SE",
+"landing_lat": -32.4992,
+"landing_lon": 117.3766,
+"fog": "low",
+"wind10_kmh": 11.4,
+"jet_kmh": 205.88,
+"float_status": "fair",
+"band_min_ms": 1.84,
+"steering_arc_deg": 165.04,
+"float_safe_h": 8.1,
+"float_best_km": 20
 }
 ]
 },
@@ -3994,6 +4266,23 @@
 "steering_arc_deg": 161.99,
 "float_safe_h": 30.1,
 "float_best_km": 20
+},
+{
+"run": "2026-11-13T06Z",
+"lead_days": 0.6,
+"burst_status": "marginal",
+"landing_km": 67.5,
+"landing_dir": "E",
+"landing_lat": -31.5431,
+"landing_lon": 119.0312,
+"fog": "low",
+"wind10_kmh": 19.7,
+"jet_kmh": 121.7,
+"float_status": "fair",
+"band_min_ms": 2.21,
+"steering_arc_deg": 166.07,
+"float_safe_h": 31.1,
+"float_best_km": 20
 }
 ],
 "2026-11-15": [
@@ -4198,6 +4487,23 @@
 "float_status": "fair",
 "band_min_ms": 2.47,
 "steering_arc_deg": 158.04,
+"float_safe_h": 26.1,
+"float_best_km": 20
+},
+{
+"run": "2026-11-13T06Z",
+"lead_days": 1.6,
+"burst_status": "marginal",
+"landing_km": 46.2,
+"landing_dir": "E",
+"landing_lat": -31.5289,
+"landing_lon": 118.8065,
+"fog": "low",
+"wind10_kmh": 21.6,
+"jet_kmh": 140.56,
+"float_status": "fair",
+"band_min_ms": 1.68,
+"steering_arc_deg": 170.85,
 "float_safe_h": 26.1,
 "float_best_km": 20
 }
@@ -4406,6 +4712,23 @@
 "steering_arc_deg": 152.86,
 "float_safe_h": 16.0,
 "float_best_km": 18
+},
+{
+"run": "2026-11-13T06Z",
+"lead_days": 2.6,
+"burst_status": "nogo",
+"landing_km": 28.7,
+"landing_dir": "ESE",
+"landing_lat": -31.6171,
+"landing_lon": 118.6023,
+"fog": "low",
+"wind10_kmh": 26.6,
+"jet_kmh": 127.38,
+"float_status": "nogo",
+"band_min_ms": 2.03,
+"steering_arc_deg": 168.95,
+"float_safe_h": 25.1,
+"float_best_km": 20
 }
 ],
 "2026-11-17": [
@@ -4611,6 +4934,23 @@
 "band_min_ms": 3.56,
 "steering_arc_deg": 127.7,
 "float_safe_h": 41.0,
+"float_best_km": 18
+},
+{
+"run": "2026-11-13T06Z",
+"lead_days": 3.6,
+"burst_status": "nogo",
+"landing_km": 51.3,
+"landing_dir": "WSW",
+"landing_lat": -31.6782,
+"landing_lon": 117.8114,
+"fog": "low",
+"wind10_kmh": 28.7,
+"jet_kmh": 56.78,
+"float_status": "nogo",
+"band_min_ms": 2.2,
+"steering_arc_deg": 139.33,
+"float_safe_h": 37.0,
 "float_best_km": 18
 }
 ],
@@ -4818,6 +5158,23 @@
 "steering_arc_deg": 103.42,
 "float_safe_h": 26.0,
 "float_best_km": 18
+},
+{
+"run": "2026-11-13T06Z",
+"lead_days": 4.6,
+"burst_status": "go",
+"landing_km": 54.8,
+"landing_dir": "NNW",
+"landing_lat": -31.0739,
+"landing_lon": 118.0852,
+"fog": "low",
+"wind10_kmh": 17.9,
+"jet_kmh": 87.06,
+"float_status": "good",
+"band_min_ms": 3.28,
+"steering_arc_deg": 111.84,
+"float_safe_h": 24.0,
+"float_best_km": 18
 }
 ],
 "2026-11-19": [
@@ -5023,6 +5380,23 @@
 "band_min_ms": 1.04,
 "steering_arc_deg": 164.04,
 "float_safe_h": 15.1,
+"float_best_km": 20
+},
+{
+"run": "2026-11-13T06Z",
+"lead_days": 5.6,
+"burst_status": "go",
+"landing_km": 57.5,
+"landing_dir": "ESE",
+"landing_lat": -31.7846,
+"landing_lon": 118.8433,
+"fog": "low",
+"wind10_kmh": 9.7,
+"jet_kmh": 111.98,
+"float_status": "fair",
+"band_min_ms": 0.06,
+"steering_arc_deg": 156.68,
+"float_safe_h": 14.1,
 "float_best_km": 20
 }
 ],
@@ -5230,6 +5604,23 @@
 "steering_arc_deg": 110.15,
 "float_safe_h": 11.2,
 "float_best_km": 22
+},
+{
+"run": "2026-11-13T06Z",
+"lead_days": 6.6,
+"burst_status": "go",
+"landing_km": 127.3,
+"landing_dir": "ESE",
+"landing_lat": -31.857,
+"landing_lon": 119.6034,
+"fog": "low",
+"wind10_kmh": 11.9,
+"jet_kmh": 176.93,
+"float_status": "fair",
+"band_min_ms": 3.2,
+"steering_arc_deg": 147.93,
+"float_safe_h": 18.2,
+"float_best_km": 22
 }
 ],
 "2026-11-21": [
@@ -5435,6 +5826,23 @@
 "band_min_ms": 2.22,
 "steering_arc_deg": 155.47,
 "float_safe_h": 21.2,
+"float_best_km": 22
+},
+{
+"run": "2026-11-13T06Z",
+"lead_days": 7.6,
+"burst_status": "nogo",
+"landing_km": 182.3,
+"landing_dir": "E",
+"landing_lat": -31.7936,
+"landing_lon": 120.2152,
+"fog": "moderate",
+"wind10_kmh": 14.1,
+"jet_kmh": 283.16,
+"float_status": "fair",
+"band_min_ms": 0.72,
+"steering_arc_deg": 175.45,
+"float_safe_h": 24.2,
 "float_best_km": 22
 }
 ],
@@ -5642,6 +6050,23 @@
 "steering_arc_deg": 178.64,
 "float_safe_h": 18.1,
 "float_best_km": 20
+},
+{
+"run": "2026-11-13T06Z",
+"lead_days": 8.6,
+"burst_status": "marginal",
+"landing_km": 150.8,
+"landing_dir": "E",
+"landing_lat": -31.3926,
+"landing_lon": 119.9015,
+"fog": "low",
+"wind10_kmh": 10.2,
+"jet_kmh": 287.35,
+"float_status": "good",
+"band_min_ms": 3.02,
+"steering_arc_deg": 174.52,
+"float_safe_h": 101.1,
+"float_best_km": 20
 }
 ],
 "2026-11-23": [
@@ -5847,6 +6272,23 @@
 "band_min_ms": 0.21,
 "steering_arc_deg": 166.29,
 "float_safe_h": 64.1,
+"float_best_km": 20
+},
+{
+"run": "2026-11-13T06Z",
+"lead_days": 9.6,
+"burst_status": "marginal",
+"landing_km": 84.3,
+"landing_dir": "ENE",
+"landing_lat": -31.2178,
+"landing_lon": 119.1325,
+"fog": "low",
+"wind10_kmh": 15.8,
+"jet_kmh": 159.63,
+"float_status": "fair",
+"band_min_ms": 1.58,
+"steering_arc_deg": 161.31,
+"float_safe_h": 53.1,
 "float_best_km": 20
 }
 ],
@@ -6054,6 +6496,23 @@
 "steering_arc_deg": 182.36,
 "float_safe_h": 55.1,
 "float_best_km": 20
+},
+{
+"run": "2026-11-13T06Z",
+"lead_days": 10.6,
+"burst_status": "marginal",
+"landing_km": 17.0,
+"landing_dir": "ENE",
+"landing_lat": -31.4592,
+"landing_lon": 118.4825,
+"fog": "low",
+"wind10_kmh": 18.4,
+"jet_kmh": 109.32,
+"float_status": "fair",
+"band_min_ms": 0.9,
+"steering_arc_deg": 171.32,
+"float_safe_h": 30.1,
+"float_best_km": 20
 }
 ],
 "2026-11-25": [
@@ -6260,6 +6719,23 @@
 "steering_arc_deg": 174.54,
 "float_safe_h": 57.1,
 "float_best_km": 20
+},
+{
+"run": "2026-11-13T06Z",
+"lead_days": 11.6,
+"burst_status": "marginal",
+"landing_km": 9.4,
+"landing_dir": "NNE",
+"landing_lat": -31.4433,
+"landing_lon": 118.3505,
+"fog": "low",
+"wind10_kmh": 17.4,
+"jet_kmh": 89.29,
+"float_status": "fair",
+"band_min_ms": 0.44,
+"steering_arc_deg": 188.53,
+"float_safe_h": 35.1,
+"float_best_km": 20
 }
 ],
 "2026-11-26": [
@@ -6449,6 +6925,23 @@
 "steering_arc_deg": 194.03,
 "float_safe_h": 35.1,
 "float_best_km": 20
+},
+{
+"run": "2026-11-13T06Z",
+"lead_days": 12.6,
+"burst_status": "nogo",
+"landing_km": 46.2,
+"landing_dir": "SE",
+"landing_lat": -31.8201,
+"landing_lon": 118.6598,
+"fog": "low",
+"wind10_kmh": 26.5,
+"jet_kmh": 143.03,
+"float_status": "nogo",
+"band_min_ms": 0.15,
+"steering_arc_deg": 186.96,
+"float_safe_h": 24.1,
+"float_best_km": 20
 }
 ],
 "2026-11-27": [
@@ -6604,6 +7097,23 @@
 "steering_arc_deg": 151.83,
 "float_safe_h": 16.0,
 "float_best_km": 18
+},
+{
+"run": "2026-11-13T06Z",
+"lead_days": 13.6,
+"burst_status": "nogo",
+"landing_km": 49.4,
+"landing_dir": "SSE",
+"landing_lat": -31.9313,
+"landing_lon": 118.5255,
+"fog": "low",
+"wind10_kmh": 28.1,
+"jet_kmh": 133.67,
+"float_status": "nogo",
+"band_min_ms": 1.61,
+"steering_arc_deg": 159.12,
+"float_safe_h": 15.1,
+"float_best_km": 20
 }
 ],
 "2026-11-28": [
@@ -6691,6 +7201,23 @@
 "steering_arc_deg": 198.41,
 "float_safe_h": 16.1,
 "float_best_km": 20
+},
+{
+"run": "2026-11-13T06Z",
+"lead_days": 14.6,
+"burst_status": "nogo",
+"landing_km": 74.2,
+"landing_dir": "SE",
+"landing_lat": -31.894,
+"landing_lon": 118.97,
+"fog": "low",
+"wind10_kmh": 29.5,
+"jet_kmh": 189.3,
+"float_status": "nogo",
+"band_min_ms": 2.31,
+"steering_arc_deg": 163.65,
+"float_safe_h": 20.1,
+"float_best_km": 20
 }
 ],
 "2026-11-29": [
@@ -6709,6 +7236,23 @@
 "band_min_ms": 2.23,
 "steering_arc_deg": 154.66,
 "float_safe_h": 2.2,
+"float_best_km": 22
+},
+{
+"run": "2026-11-13T06Z",
+"lead_days": 15.6,
+"burst_status": "marginal",
+"landing_km": 132.2,
+"landing_dir": "SE",
+"landing_lat": -32.4424,
+"landing_lon": 119.203,
+"fog": "low",
+"wind10_kmh": 23.7,
+"jet_kmh": 206.99,
+"float_status": "fair",
+"band_min_ms": 1.71,
+"steering_arc_deg": 159.48,
+"float_safe_h": 8.2,
 "float_best_km": 22
 }
 ]
